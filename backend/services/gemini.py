@@ -2,11 +2,11 @@ import re
 from datetime import date
 from pathlib import Path
 
-import google.generativeai as genai
+from google.genai import types
 
 from backend.config import GEMINI_API_KEY
 from backend.services.filesystem import parse_lecture_folder
-from backend.services.gemini_utils import resolve_gemini_model
+from backend.services.gemini_utils import get_client, resolve_gemini_model
 from backend.services.job_status import log_pipeline, write_job_status
 
 SYSTEM_PROMPT = """You are an expert academic editor and note-taker. You receive:
@@ -106,9 +106,14 @@ def generate_notebook_draft(lecture_path: Path) -> Path:
         error=None,
     )
 
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel(model_name, system_instruction=SYSTEM_PROMPT)
-    response = model.generate_content(user_prompt)
+    client = get_client()
+    response = client.models.generate_content(
+        model=model_name,
+        contents=user_prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+        ),
+    )
 
     if not response.text:
         raise RuntimeError("Gemini returned empty response")

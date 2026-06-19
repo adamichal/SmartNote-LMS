@@ -1,15 +1,15 @@
 import logging
 
-import google.generativeai as genai
+from google import genai
 
 from backend.config import GEMINI_API_KEY, GEMINI_MODEL
 
 logger = logging.getLogger(__name__)
 
+_client: genai.Client | None = None
 _resolved_model: str | None = None
 _available_models: list[str] = []
 
-# Prefer capable models for long Hebrew notebooks (newest stable first).
 PREFERRED_MODELS = [
     "gemini-3.5-flash",
     "gemini-2.5-pro",
@@ -17,6 +17,15 @@ PREFERRED_MODELS = [
     "gemini-3.1-flash-lite",
     "gemini-2.5-flash-lite",
 ]
+
+
+def get_client() -> genai.Client:
+    global _client
+    if _client is None:
+        if not GEMINI_API_KEY:
+            raise RuntimeError("GEMINI_API_KEY is not configured")
+        _client = genai.Client(api_key=GEMINI_API_KEY)
+    return _client
 
 
 def _normalize_model_name(name: str) -> str:
@@ -27,13 +36,16 @@ def list_generate_content_models() -> list[str]:
     if not GEMINI_API_KEY:
         return []
 
-    genai.configure(api_key=GEMINI_API_KEY)
+    client = get_client()
     models: list[str] = []
-    for model in genai.list_models():
-        methods = getattr(model, "supported_generation_methods", []) or []
-        if "generateContent" not in methods:
+    for model in client.models.list():
+        name = _normalize_model_name(getattr(model, "name", "") or "")
+        if not name.startswith("gemini-"):
             continue
-        models.append(_normalize_model_name(model.name))
+        actions = getattr(model, "supported_actions", None)
+        if actions and "generateContent" not in actions:
+            continue
+        models.append(name)
     return sorted(set(models))
 
 
@@ -49,7 +61,7 @@ def resolve_gemini_model() -> str:
     if not _available_models:
         raise RuntimeError(
             "No Gemini models available for this API key. "
-            "Create a key at https://aistudio.google.com/apikey (not Vertex AI)."
+            "Verify the key at https://aistudio.google.com/apikey"
         )
 
     configured = _normalize_model_name(GEMINI_MODEL.strip())
@@ -60,7 +72,7 @@ def resolve_gemini_model() -> str:
 
     if configured:
         logger.warning(
-            "GEMINI_MODEL=%s is not available for this key. Available: %s",
+            "GEMINI_MODEL=%s is not available. Available: %s",
             configured,
             ", ".join(_available_models[:8]),
         )
@@ -77,10 +89,12 @@ def resolve_gemini_model() -> str:
 
 
 def verify_gemini_on_startup() -> dict:
+    key_prefix = GEMINI_API_KEY[:3] if GEMINI_API_KEY else None
     if not GEMINI_API_KEY:
         return {
             "available": False,
             "model": GEMINI_MODEL,
+            "key_type": None,
             "message": "GEMINI_API_KEY is not configured",
             "models": [],
         }
@@ -88,10 +102,12 @@ def verify_gemini_on_startup() -> dict:
     try:
         model = resolve_gemini_model()
         models = _available_models or list_generate_content_models()
+        key_type = "auth (AQ.)" if GEMINI_API_KEY.startswith("AQ.") else "standard (AIza)"
         return {
             "available": True,
             "model": model,
             "configured_model": GEMINI_MODEL,
+            "key_type": key_type,
             "message": "Gemini OK",
             "models": models[:15],
         }
@@ -100,12 +116,7 @@ def verify_gemini_on_startup() -> dict:
         return {
             "available": False,
             "model": GEMINI_MODEL,
+            "key_type": "auth (AQ.)" if GEMINI_API_KEY.startswith("AQ.") else "standard (AIza)",
             "message": str(exc),
             "models": [],
         }
-
-
-def get_available_models() -> list[str]:
-    if _available_models:
-        return _available_models
-    return list_generate_content_models()

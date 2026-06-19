@@ -1,24 +1,22 @@
 import { useState } from "react";
-import PathInput from "./PathInput";
+import FileUploadInput from "./FileUploadInput";
 
 export default function NewLectureForm({ onCreate }) {
   const [number, setNumber] = useState("");
   const [topic, setTopic] = useState("");
-  const [mediaPath, setMediaPath] = useState("");
-  const [pdfPath, setPdfPath] = useState("");
-  const [mediaValid, setMediaValid] = useState(null);
-  const [pdfValid, setPdfValid] = useState(null);
+  const [mediaUploadId, setMediaUploadId] = useState(null);
+  const [pdfUploadId, setPdfUploadId] = useState(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
+  const uploadsComplete = Boolean(mediaUploadId && pdfUploadId);
+
   function resetForm() {
     setNumber("");
     setTopic("");
-    setMediaPath("");
-    setPdfPath("");
-    setMediaValid(null);
-    setPdfValid(null);
+    setMediaUploadId(null);
+    setPdfUploadId(null);
     setError("");
   }
 
@@ -33,12 +31,8 @@ export default function NewLectureForm({ onCreate }) {
       setError("יש להזין נושא");
       return;
     }
-    if (mediaPath.trim() && mediaValid !== true) {
-      setError("נתיב המדיה אינו תקין או עדיין נבדק");
-      return;
-    }
-    if (pdfPath.trim() && pdfValid !== true) {
-      setError("נתיב ה-PDF אינו תקין או עדיין נבדק");
+    if (!uploadsComplete) {
+      setError("יש להעלות קובץ מדיה ו-PDF לפני יצירת ההרצאה");
       return;
     }
 
@@ -46,8 +40,8 @@ export default function NewLectureForm({ onCreate }) {
     setError("");
     try {
       await onCreate(parsedNumber, topic.trim(), {
-        mediaPath: mediaPath.trim() || null,
-        pdfPath: pdfPath.trim() || null,
+        mediaUploadId,
+        pdfUploadId,
       });
       resetForm();
       setExpanded(false);
@@ -104,24 +98,22 @@ export default function NewLectureForm({ onCreate }) {
           />
         </div>
 
-        <PathInput
-          id="media-path"
-          label="🎬 מדיה (MP4/MP3) — נתיב מקומי"
-          placeholder="C:\Lectures\lecture.mp4"
+        <FileUploadInput
+          id="media-file"
+          label="🎬 מדיה (MP4/MP3)"
+          accept=".mp4,.mp3,video/mp4,audio/mpeg,audio/mp3"
           fileType="media"
-          value={mediaPath}
-          onChange={setMediaPath}
-          onValidationChange={setMediaValid}
+          onUploadComplete={setMediaUploadId}
+          onUploadReset={() => setMediaUploadId(null)}
         />
 
-        <PathInput
-          id="pdf-path"
-          label="📄 מצגת (PDF) — נתיב מקומי"
-          placeholder="C:\Lectures\slides.pdf"
+        <FileUploadInput
+          id="pdf-file"
+          label="📄 מצגת (PDF)"
+          accept=".pdf,application/pdf"
           fileType="pdf"
-          value={pdfPath}
-          onChange={setPdfPath}
-          onValidationChange={setPdfValid}
+          onUploadComplete={setPdfUploadId}
+          onUploadReset={() => setPdfUploadId(null)}
         />
 
         {error && (
@@ -130,10 +122,10 @@ export default function NewLectureForm({ onCreate }) {
         <div className="flex gap-3 sm:col-span-2">
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !uploadsComplete}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
           >
-            {submitting ? "יוצר..." : "צור הרצאה"}
+            {submitting ? "יוצר..." : "צור הרצאה והתחל עיבוד"}
           </button>
           <button
             type="button"

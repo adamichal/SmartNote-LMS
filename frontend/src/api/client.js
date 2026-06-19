@@ -1,4 +1,5 @@
 const API_BASE = "/api";
+const CHUNK_SIZE = 10 * 1024 * 1024;
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -34,20 +35,61 @@ export function getLectures(courseName) {
   return request(`/courses/${encodeURIComponent(courseName)}/lectures`);
 }
 
-export function createLecture(courseName, number, topic, { mediaPath = null, pdfPath = null } = {}) {
-  const body = { number, topic };
-  if (mediaPath) body.media_path = mediaPath;
-  if (pdfPath) body.pdf_path = pdfPath;
-
+export function createLecture(courseName, number, topic, { mediaUploadId, pdfUploadId } = {}) {
   return request(`/courses/${encodeURIComponent(courseName)}/lectures`, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      number,
+      topic,
+      media_upload_id: mediaUploadId,
+      pdf_upload_id: pdfUploadId,
+    }),
   });
 }
 
-export function validateFilePath(path, fileType) {
-  return request("/files/validate", {
+export function getLectureStatus(lectureId) {
+  return request(`/lectures/${encodeURIComponent(lectureId)}/status`);
+}
+
+export function retryLecture(lectureId) {
+  return request(`/lectures/${encodeURIComponent(lectureId)}/retry`, {
     method: "POST",
-    body: JSON.stringify({ path, file_type: fileType }),
   });
+}
+
+export async function uploadFile(file, fileType, onProgress) {
+  const init = await request("/uploads/init", {
+    method: "POST",
+    body: JSON.stringify({
+      filename: file.name,
+      file_type: fileType,
+      total_size: file.size,
+    }),
+  });
+
+  let offset = 0;
+  while (offset < file.size) {
+    const chunk = file.slice(offset, offset + CHUNK_SIZE);
+    const end = Math.min(offset + CHUNK_SIZE, file.size) - 1;
+
+    const response = await fetch(`${API_BASE}/uploads/${init.upload_id}/chunk`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Content-Range": `bytes ${offset}-${end}/${file.size}`,
+      },
+      body: chunk,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || "Upload failed");
+    }
+
+    const result = await response.json();
+    onProgress?.(result.progress_pct);
+    offset = result.received;
+  }
+
+  return init.upload_id;
 }

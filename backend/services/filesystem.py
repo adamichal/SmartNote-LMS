@@ -124,13 +124,12 @@ def create_lecture(
     course_name: str,
     number: int,
     topic: str,
+    media_upload_id: str | None = None,
+    pdf_upload_id: str | None = None,
     media_path: str | None = None,
     pdf_path: str | None = None,
 ) -> dict:
-    if media_path:
-        file_service.require_valid_file(media_path, "media")
-    if pdf_path:
-        file_service.require_valid_file(pdf_path, "pdf")
+    from backend.services import uploads as upload_service
 
     course_path = get_course_path_or_404(course_name)
     folder_name = lecture_folder_name(number, topic)
@@ -139,12 +138,35 @@ def create_lecture(
     if lecture_path.exists():
         raise HTTPException(status_code=409, detail="Lecture already exists")
 
+    has_media = bool(media_upload_id or media_path)
+    has_pdf = bool(pdf_upload_id or pdf_path)
+
+    if not has_media or not has_pdf:
+        raise HTTPException(
+            status_code=400,
+            detail="Both media and PDF files are required",
+        )
+
+    if media_path:
+        file_service.require_valid_file(media_path, "media")
+    if pdf_path:
+        file_service.require_valid_file(pdf_path, "pdf")
+    if media_upload_id:
+        upload_service.require_complete_upload(media_upload_id)
+    if pdf_upload_id:
+        upload_service.require_complete_upload(pdf_upload_id)
+
     lecture_path.mkdir(parents=True, exist_ok=False)
     try:
         for subdir in LECTURE_SUBDIRS:
             (lecture_path / subdir).mkdir()
 
         raw_media_dir = lecture_path / "raw_media"
+
+        if media_upload_id:
+            upload_service.finalize_upload_to_raw_media(media_upload_id, raw_media_dir)
+        if pdf_upload_id:
+            upload_service.finalize_upload_to_raw_media(pdf_upload_id, raw_media_dir)
         if media_path:
             file_service.copy_media_file(
                 file_service.require_valid_file(media_path, "media"),
@@ -172,6 +194,10 @@ def create_lecture(
         )
     except Exception:
         shutil.rmtree(lecture_path, ignore_errors=True)
+        if media_upload_id:
+            upload_service.cleanup_upload(media_upload_id)
+        if pdf_upload_id:
+            upload_service.cleanup_upload(pdf_upload_id)
         raise
 
     return {
@@ -179,4 +205,5 @@ def create_lecture(
         "number": number,
         "topic": topic.strip(),
         "status": "pending",
+        "lecture_path": str(lecture_path),
     }

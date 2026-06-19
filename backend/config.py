@@ -9,3 +9,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 COURSES_BASE_PATH = Path(
     os.getenv("COURSES_BASE_PATH", PROJECT_ROOT / "Courses")
 ).resolve()
+UPLOADS_BASE_PATH = Path(
+    os.getenv("UPLOADS_BASE_PATH", PROJECT_ROOT / ".uploads")
+).resolve()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+FFMPEG_PATH = os.getenv("FFMPEG_PATH", "ffmpeg")
+
+CHUNK_SIZE_BYTES = 10 * 1024 * 1024
+WHISPER_MAX_BYTES = 24 * 1024 * 1024
+AUDIO_SEGMENT_SECONDS = 20 * 60
+

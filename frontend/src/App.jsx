@@ -1,6 +1,8 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import LectureList from "./pages/LectureList";
+import NotebookPlaceholder from "./pages/NotebookPlaceholder";
+import ProcessingProgress from "./pages/ProcessingProgress";
 
 function App() {
   return (
@@ -13,6 +15,14 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/courses/:courseName" element={<LectureList />} />
+            <Route
+              path="/courses/:courseName/lectures/:lectureId/progress"
+              element={<ProcessingProgress />}
+            />
+            <Route
+              path="/courses/:courseName/lectures/:lectureId/notebook"
+              element={<NotebookPlaceholder />}
+            />
           </Routes>
         </main>
       </div>

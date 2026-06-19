@@ -91,4 +91,5 @@ The Vite dev server proxies `/api` requests to the backend on port 8000.
 - Phase 1 (skeleton) — complete
 - Phase 2 (course & lecture management) — complete
 - Phase 3 (local file path handling) — complete
-- Phase 4+ (processing pipeline, AI, editor) — pending
+- Phase 4 (processing pipeline through PDF extraction) — complete
+- Phase 5 (Gemini AI editing & notebook editor) — pending

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { createLecture, getLectures } from "../api/client";
 import NewLectureForm from "../components/NewLectureForm";
 import StatusBadge from "../components/StatusBadge";
 
 export default function LectureList() {
   const { courseName } = useParams();
+  const navigate = useNavigate();
   const decodedName = decodeURIComponent(courseName);
   const [lectures, setLectures] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,9 +29,11 @@ export default function LectureList() {
     loadLectures();
   }, [loadLectures]);
 
-  async function handleCreateLecture(number, topic, paths = {}) {
-    await createLecture(decodedName, number, topic, paths);
-    await loadLectures();
+  async function handleCreateLecture(number, topic, uploads = {}) {
+    const lecture = await createLecture(decodedName, number, topic, uploads);
+    navigate(
+      `/courses/${encodeURIComponent(decodedName)}/lectures/${encodeURIComponent(lecture.id)}/progress`,
+    );
   }
 
   return (
@@ -60,16 +63,16 @@ export default function LectureList() {
       {!loading && lectures.length > 0 && (
         <ul className="space-y-3">
           {lectures.map((lecture) => (
-            <li
-              key={lecture.id}
-              className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-6 py-4 shadow-sm"
-            >
-              <div>
+            <li key={lecture.id}>
+              <Link
+                to={`/courses/${encodeURIComponent(decodedName)}/lectures/${encodeURIComponent(lecture.id)}/progress`}
+                className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-6 py-4 shadow-sm transition hover:border-indigo-300"
+              >
                 <span className="font-medium text-gray-900">
                   הרצאה {lecture.number}: {lecture.topic}
                 </span>
-              </div>
-              <StatusBadge status={lecture.status} />
+                <StatusBadge status={lecture.status} />
+              </Link>
             </li>
           ))}
         </ul>

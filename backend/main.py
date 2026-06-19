@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import GEMINI_API_KEY, GEMINI_MODEL
 from backend.routers import courses, files, lectures, uploads
 from backend.services.ffmpeg_utils import verify_ffmpeg_on_startup
-from backend.services.gemini_utils import verify_gemini_on_startup
+from backend.services.export import check_pdf_export_available
 
 logging.basicConfig(level=logging.INFO)
 
@@ -41,9 +41,11 @@ app.include_router(lectures.router)
 async def health_check():
     ffmpeg = getattr(app.state, "ffmpeg", None) or verify_ffmpeg_on_startup()
     gemini = getattr(app.state, "gemini", None) or verify_gemini_on_startup()
+    pdf_export = check_pdf_export_available()
     ok = ffmpeg.get("available") and gemini.get("available")
     return {
         "status": "ok" if ok else "degraded",
         "ffmpeg": ffmpeg,
         "gemini": gemini,
+        "pdf_export": pdf_export,
     }

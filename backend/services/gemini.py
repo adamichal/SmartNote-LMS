@@ -6,6 +6,7 @@ from google.genai import types
 
 from backend.config import GEMINI_API_KEY
 from backend.services.filesystem import parse_lecture_folder
+from backend.services.notebook import build_slide_catalog
 from backend.services.gemini_utils import get_client, resolve_gemini_model
 from backend.services.job_status import log_pipeline, write_job_status
 
@@ -22,6 +23,9 @@ USER_PROMPT_TEMPLATE = """## Raw Transcript:
 ## PDF Text (presentation + supplementary sources — source of truth for terminology):
 {pdf_text}
 
+## Available slide images (full PDF pages):
+{slide_catalog}
+
 ## Strict Rules:
 1. NO OMISSIONS: Include every topic, explanation, and example from the transcript.
    Remove only: filler words ("אמ", "כאילו"), repetitions, and off-topic small talk.
@@ -30,9 +34,10 @@ USER_PROMPT_TEMPLATE = """## Raw Transcript:
 3. HIGHLIGHT: Bold (**term**) every key definition and important concept on first mention.
 4. STRUCTURE: Organize into clear sections matching the lecture flow.
    Use: # for main topics, ## for subtopics, ### for examples/cases.
-5. IMAGE PLACEHOLDERS: Where the speaker references a slide or diagram, insert:
-   `![תיאור קצר](./extracted_images/PLACEHOLDER.png)`
-   I will match these to actual images later.
+5. IMAGES: Insert a slide image ONLY when the transcript clearly discusses that specific slide.
+   Use the exact filename from the catalog, e.g. `![תיאור קצר](./extracted_images/page_023.png)`.
+   Match by comparing transcript content to the slide preview text.
+   Do NOT guess filenames. Do NOT insert images for every section. If unsure, omit the image.
 6. PDF DIFF SECTION: At the END of the notebook, add a section:
    ## 📋 נושאים מהמצגת שלא נדונו בהרצאה
    List any topics/slides present in the PDF but not covered in the transcript.
@@ -90,6 +95,7 @@ def generate_notebook_draft(lecture_path: Path) -> Path:
     user_prompt = USER_PROMPT_TEMPLATE.format(
         raw_transcript=raw_transcript,
         pdf_text=pdf_text,
+        slide_catalog=build_slide_catalog(lecture_path),
         lecture_topic=lecture_topic,
         course_name=course_name,
         lecture_number=lecture_number,

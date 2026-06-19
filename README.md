@@ -127,5 +127,16 @@ After fixing, restart the backend. On the next pipeline run, `pipeline.log` insi
 
 ### Export prerequisites
 
-- **PDF** — requires WeasyPrint (included in `requirements.txt`). On Windows you may need [GTK3 runtime](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows).
+- **PDF** — uses `xhtml2pdf` (pure Python, works on Windows). Run `pip install -r requirements.txt`.
 - **DOCX** — requires [Pandoc](https://pandoc.org/installing.html) installed and available on PATH.
+
+### Slide images
+
+Each PDF page is saved as `page_001.png`, `page_002.png`, etc. Gemini receives a catalog of pages and inserts images only when the transcript clearly matches a specific slide. Legacy `slide_*.png` references are removed automatically.
+
+To re-extract slides and regenerate the notebook with better image placement, delete these inside the lecture folder and click **Retry**:
+
+- `extracted_images/`
+- `transcripts/.pdf_processed`
+- `transcripts/ai_draft.md`
+- `final_notebook.md`

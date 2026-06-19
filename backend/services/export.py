@@ -1,4 +1,5 @@
 import re
+from io import BytesIO
 from pathlib import Path
 
 import markdown
@@ -9,6 +10,10 @@ from backend.services.notebook import read_notebook
 IMAGE_PATH_PATTERN = re.compile(
     r"!\[([^\]]*)\]\(\./extracted_images/([^)]+)\)"
 )
+LEGACY_SLIDE_REF_PATTERN = re.compile(
+    r"!\[[^\]]*\]\(\./extracted_images/slide_[^)]+\)\s*",
+    re.IGNORECASE,
+)
 
 PDF_CSS = """
 @page {
@@ -16,7 +21,7 @@ PDF_CSS = """
   margin: 2cm;
 }
 body {
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: NotebookFont, "Segoe UI", Arial, sans-serif;
   font-size: 13px;
   line-height: 1.7;
   direction: rtl;
@@ -63,6 +68,27 @@ def _ensure_exports_dir(lecture_path: Path) -> Path:
     return exports_dir
 
 
+def _register_export_font() -> None:
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    font_candidates = [
+        Path("C:/Windows/Fonts/segoeui.ttf"),
+        Path("C:/Windows/Fonts/arial.ttf"),
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+    ]
+    for font_path in font_candidates:
+        if font_path.is_file():
+            pdfmetrics.registerFont(TTFont("NotebookFont", str(font_path)))
+            return
+
+
+def _pdf_link_callback(uri: str, _rel) -> str:
+    if uri.startswith("file:"):
+        return uri.replace("file:///", "").replace("file://", "")
+    return uri
+
+
 def _rewrite_image_paths_for_export(content: str, lecture_path: Path) -> str:
     images_dir = (lecture_path / "extracted_images").resolve()
 
@@ -71,10 +97,11 @@ def _rewrite_image_paths_for_export(content: str, lecture_path: Path) -> str:
         filename = match.group(2)
         image_path = (images_dir / filename).resolve()
         if not image_path.is_file():
-            return match.group(0)
+            return ""
         return f"![{alt}]({image_path.as_uri()})"
 
-    return IMAGE_PATH_PATTERN.sub(replace_image, content)
+    cleaned = LEGACY_SLIDE_REF_PATTERN.sub("", content)
+    return IMAGE_PATH_PATTERN.sub(replace_image, cleaned)
 
 
 def _markdown_to_html(content: str, lecture_path: Path) -> str:
@@ -93,6 +120,19 @@ def _markdown_to_html(content: str, lecture_path: Path) -> str:
 </html>"""
 
 
+def check_pdf_export_available() -> dict:
+    try:
+        from xhtml2pdf import pisa  # noqa: F401
+
+        return {"available": True, "engine": "xhtml2pdf", "message": "PDF export ready"}
+    except ImportError:
+        return {
+            "available": False,
+            "engine": None,
+            "message": "xhtml2pdf is not installed. Run: pip install xhtml2pdf",
+        }
+
+
 def export_markdown(lecture_path: Path) -> tuple[Path, str, str]:
     notebook_path = lecture_path / "final_notebook.md"
     if not notebook_path.exists():
@@ -105,17 +145,29 @@ def export_markdown(lecture_path: Path) -> tuple[Path, str, str]:
 
 def export_pdf(lecture_path: Path) -> tuple[Path, str, str]:
     try:
-        from weasyprint import HTML
+        from xhtml2pdf import pisa
     except ImportError as exc:
         raise RuntimeError(
-            "WeasyPrint is not installed. Install requirements.txt to enable PDF export."
+            "PDF export requires xhtml2pdf. Install dependencies: pip install -r requirements.txt"
         ) from exc
 
+    _register_export_font()
     content = read_notebook(lecture_path)
     html = _markdown_to_html(content, lecture_path)
     exports_dir = _ensure_exports_dir(lecture_path)
     output_path = exports_dir / "notebook.pdf"
-    HTML(string=html, base_url=str(lecture_path.resolve())).write_pdf(str(output_path))
+
+    result = BytesIO()
+    status = pisa.CreatePDF(
+        html,
+        dest=result,
+        encoding="utf-8",
+        link_callback=_pdf_link_callback,
+    )
+    if status.err:
+        raise RuntimeError("PDF export failed while rendering the notebook HTML")
+
+    output_path.write_bytes(result.getvalue())
     return output_path, "application/pdf", f"{lecture_path.name}_notebook.pdf"
 
 

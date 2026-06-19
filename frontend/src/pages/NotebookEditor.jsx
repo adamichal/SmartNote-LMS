@@ -1,24 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { exportNotebook, getNotebook, saveNotebook } from "../api/client";
-import WysiwygNotebookEditor from "../components/WysiwygNotebookEditor";
+import VisualNotebookEditor from "../components/VisualNotebookEditor";
 import "katex/dist/katex.min.css";
 
 export default function NotebookEditor() {
   const { courseName, lectureId } = useParams();
   const decodedCourse = decodeURIComponent(courseName);
   const decodedLecture = decodeURIComponent(lectureId);
+  const editorRef = useRef(null);
 
   const [content, setContent] = useState("");
-  const [savedContent, setSavedContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState("");
   const [message, setMessage] = useState("");
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
-
-  const isDirty = content !== savedContent;
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -27,7 +26,7 @@ export default function NotebookEditor() {
       try {
         const data = await getNotebook(decodedLecture);
         setContent(data.content);
-        setSavedContent(data.content);
+        setIsDirty(false);
       } catch (err) {
         setLoadError(typeof err.message === "string" ? err.message : "טעינת המחברת נכשלה");
       } finally {
@@ -42,8 +41,11 @@ export default function NotebookEditor() {
     setMessage("");
     setActionError("");
     try {
-      await saveNotebook(decodedLecture, content);
-      setSavedContent(content);
+      const markdown = editorRef.current?.getMarkdown() ?? content;
+      await saveNotebook(decodedLecture, markdown);
+      setContent(markdown);
+      editorRef.current?.markSaved();
+      setIsDirty(false);
       setMessage("המחברת נשמרה");
     } catch (err) {
       setActionError(typeof err.message === "string" ? err.message : "שמירה נכשלה");
@@ -128,10 +130,11 @@ export default function NotebookEditor() {
       )}
 
       {!loading && !loadError && (
-        <WysiwygNotebookEditor
+        <VisualNotebookEditor
+          ref={editorRef}
           content={content}
           lectureId={decodedLecture}
-          onChange={setContent}
+          onDirtyChange={setIsDirty}
         />
       )}
     </div>

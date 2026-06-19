@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { createLecture, getLectures } from "../api/client";
+import { createLecture, deleteLecture, getLectures } from "../api/client";
+import ConfirmDialog from "../components/ConfirmDialog";
 import NewLectureForm from "../components/NewLectureForm";
 import StatusBadge from "../components/StatusBadge";
 
@@ -11,6 +12,8 @@ export default function LectureList() {
   const [lectures, setLectures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [lectureToDelete, setLectureToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadLectures = useCallback(async () => {
     setLoading(true);
@@ -34,6 +37,21 @@ export default function LectureList() {
     navigate(
       `/courses/${encodeURIComponent(decodedName)}/lectures/${encodeURIComponent(lecture.id)}/progress`,
     );
+  }
+
+  async function handleConfirmDelete() {
+    if (!lectureToDelete) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteLecture(decodedName, lectureToDelete.id);
+      setLectureToDelete(null);
+      await loadLectures();
+    } catch (err) {
+      setError(typeof err.message === "string" ? err.message : "מחיקת ההרצאה נכשלה");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -63,19 +81,40 @@ export default function LectureList() {
       {!loading && lectures.length > 0 && (
         <ul className="space-y-3">
           {lectures.map((lecture) => (
-            <li key={lecture.id}>
+            <li
+              key={lecture.id}
+              className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-6 py-4 shadow-sm"
+            >
               <Link
                 to={`/courses/${encodeURIComponent(decodedName)}/lectures/${encodeURIComponent(lecture.id)}/progress`}
-                className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-6 py-4 shadow-sm transition hover:border-indigo-300"
+                className="flex flex-1 items-center justify-between pe-4 transition hover:text-indigo-700"
               >
                 <span className="font-medium text-gray-900">
                   הרצאה {lecture.number}: {lecture.topic}
                 </span>
                 <StatusBadge status={lecture.status} />
               </Link>
+              <button
+                type="button"
+                onClick={() => setLectureToDelete(lecture)}
+                className="rounded-lg px-3 py-1 text-xs text-red-600 hover:bg-red-50"
+              >
+                מחק
+              </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {lectureToDelete && (
+        <ConfirmDialog
+          title="מחיקת הרצאה"
+          message={`האם למחוק את הרצאה ${lectureToDelete.number}: ${lectureToDelete.topic}? פעולה זו בלתי הפיכה.`}
+          confirmLabel="מחק הרצאה"
+          loading={deleting}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setLectureToDelete(null)}
+        />
       )}
     </div>
   );

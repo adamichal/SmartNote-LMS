@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { createCourse, getCourses } from "../api/client";
+import { createCourse, deleteCourse, getCourses } from "../api/client";
+import ConfirmDialog from "../components/ConfirmDialog";
 import CourseCard from "../components/CourseCard";
 import NewCourseModal from "../components/NewCourseModal";
 
@@ -8,6 +9,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadCourses = useCallback(async () => {
     setLoading(true);
@@ -29,6 +32,21 @@ export default function Dashboard() {
   async function handleCreateCourse(name) {
     await createCourse(name);
     await loadCourses();
+  }
+
+  async function handleConfirmDelete() {
+    if (!courseToDelete) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteCourse(courseToDelete.name);
+      setCourseToDelete(null);
+      await loadCourses();
+    } catch (err) {
+      setError(typeof err.message === "string" ? err.message : "מחיקת הקורס נכשלה");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -56,7 +74,11 @@ export default function Dashboard() {
       {!loading && courses.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {courses.map((course) => (
-            <CourseCard key={course.name} course={course} />
+            <CourseCard
+              key={course.name}
+              course={course}
+              onDelete={setCourseToDelete}
+            />
           ))}
         </div>
       )}
@@ -65,6 +87,17 @@ export default function Dashboard() {
         <NewCourseModal
           onClose={() => setModalOpen(false)}
           onCreate={handleCreateCourse}
+        />
+      )}
+
+      {courseToDelete && (
+        <ConfirmDialog
+          title="מחיקת קורס"
+          message={`האם למחוק את הקורס "${courseToDelete.name}" וכל ההרצאות שבו? פעולה זו בלתי הפיכה.`}
+          confirmLabel="מחק קורס"
+          loading={deleting}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setCourseToDelete(null)}
         />
       )}
     </div>

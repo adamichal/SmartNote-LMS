@@ -98,6 +98,29 @@ def get_course_path_or_404(course_name: str) -> Path:
     return course_path
 
 
+def _validate_lecture_id(lecture_id: str) -> None:
+    if not lecture_id or lecture_id in {".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid lecture id")
+    if any(sep in lecture_id for sep in ("/", "\\", "..")):
+        raise HTTPException(status_code=400, detail="Invalid lecture id")
+    if not parse_lecture_folder(lecture_id):
+        raise HTTPException(status_code=400, detail="Invalid lecture id")
+
+
+def delete_course(course_name: str) -> None:
+    course_path = get_course_path_or_404(course_name)
+    shutil.rmtree(course_path)
+
+
+def delete_lecture(course_name: str, lecture_id: str) -> None:
+    _validate_lecture_id(lecture_id)
+    course_path = get_course_path_or_404(course_name)
+    lecture_path = course_path / lecture_id
+    if not lecture_path.is_dir():
+        raise HTTPException(status_code=404, detail="Lecture not found")
+    shutil.rmtree(lecture_path)
+
+
 def list_lectures(course_name: str) -> list[dict]:
     course_path = get_course_path_or_404(course_name)
     lectures = []

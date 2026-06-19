@@ -86,6 +86,21 @@ App: [http://localhost:5173](http://localhost:5173)
 
 The Vite dev server proxies `/api` requests to the backend on port 8000.
 
+### FFmpeg troubleshooting
+
+On startup, the backend logs whether FFmpeg was found. You can also check:
+
+```
+http://localhost:8000/api/health
+```
+
+If `"ffmpeg": { "available": false }`, either:
+
+1. Set `FFMPEG_PATH` in `.env` to the **full path** to `ffmpeg.exe`, e.g. `C:/ffmpeg/bin/ffmpeg.exe`
+2. Or install FFmpeg and add its `bin` folder to your system **PATH**
+
+After fixing, restart the backend. On the next pipeline run, `pipeline.log` inside the lecture folder will contain the exact FFmpeg command used.
+
 ## Development status
 
 - Phase 1 (skeleton) — complete

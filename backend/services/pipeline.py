@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from backend.services import audio, pdf, transcription
+from backend.services.ffmpeg_utils import resolve_ffmpeg_executable
 from backend.services.job_status import log_pipeline, write_job_status
 
 
@@ -9,6 +10,9 @@ def run_pipeline(lecture_path: Path) -> None:
     log_pipeline(lecture_path, "Pipeline started")
 
     try:
+        ffmpeg_path = resolve_ffmpeg_executable()
+        log_pipeline(lecture_path, f"Using FFmpeg: {ffmpeg_path}")
+
         write_job_status(
             lecture_path,
             status="processing",

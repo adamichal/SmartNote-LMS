@@ -22,6 +22,11 @@ async def create_course(body: CourseCreate):
     return fs.create_course(body.name)
 
 
+@router.delete("/{course_name}", status_code=204)
+async def delete_course(course_name: str):
+    fs.delete_course(course_name)
+
+
 @router.get("/{course_name}/lectures", response_model=list[LectureResponse])
 async def list_lectures(course_name: str):
     return fs.list_lectures(course_name)
@@ -44,3 +49,8 @@ async def create_lecture(
     )
     background_tasks.add_task(_start_pipeline, result.pop("lecture_path"))
     return result
+
+
+@router.delete("/{course_name}/lectures/{lecture_id}", status_code=204)
+async def delete_lecture(course_name: str, lecture_id: str):
+    fs.delete_lecture(course_name, lecture_id)

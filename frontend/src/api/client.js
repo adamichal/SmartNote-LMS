@@ -31,6 +31,19 @@ export function createCourse(name) {
   });
 }
 
+export function deleteCourse(courseName) {
+  return request(`/courses/${encodeURIComponent(courseName)}`, {
+    method: "DELETE",
+  });
+}
+
+export function deleteLecture(courseName, lectureId) {
+  return request(
+    `/courses/${encodeURIComponent(courseName)}/lectures/${encodeURIComponent(lectureId)}`,
+    { method: "DELETE" },
+  );
+}
+
 export function getLectures(courseName) {
   return request(`/courses/${encodeURIComponent(courseName)}/lectures`);
 }

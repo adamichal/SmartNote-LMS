@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from backend.models.schemas import (
     ExportRequest,
@@ -54,6 +54,20 @@ async def save_notebook(lecture_id: str, body: NotebookUpdate):
     lecture_path = find_lecture_path(lecture_id)
     notebook.save_notebook(lecture_path, body.content)
     return {"content": body.content}
+
+
+@router.get("/{lecture_id}/export/print", response_class=HTMLResponse)
+async def print_notebook(lecture_id: str, autoprint: bool = False):
+    lecture_path = find_lecture_path(lecture_id)
+    try:
+        html = export_service.build_print_html(
+            lecture_path,
+            lecture_id,
+            autoprint=autoprint,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return HTMLResponse(content=html)
 
 
 @router.post("/{lecture_id}/export")

@@ -93,6 +93,11 @@ export function saveNotebook(lectureId, content) {
   });
 }
 
+export function openNotebookPrintView(lectureId) {
+  const url = `${API_BASE}/lectures/${encodeURIComponent(lectureId)}/export/print?autoprint=1`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 export async function exportNotebook(lectureId, format) {
   const response = await fetch(`${API_BASE}/lectures/${encodeURIComponent(lectureId)}/export`, {
     method: "POST",

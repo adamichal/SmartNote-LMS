@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { exportNotebook, getNotebook, saveNotebook } from "../api/client";
+import { exportNotebook, getNotebook, openNotebookPrintView, saveNotebook } from "../api/client";
 import VisualNotebookEditor from "../components/VisualNotebookEditor";
 import "katex/dist/katex.min.css";
 
@@ -60,6 +60,14 @@ export default function NotebookEditor() {
       return;
     }
 
+    if (format === "pdf") {
+      setMessage("");
+      setActionError("");
+      openNotebookPrintView(decodedLecture);
+      setMessage('נפתח חלון הדפסה — בחר "שמור כ-PDF" / Microsoft Print to PDF');
+      return;
+    }
+
     setExporting(format);
     setMessage("");
     setActionError("");
@@ -106,7 +114,7 @@ export default function NotebookEditor() {
             disabled={Boolean(exporting) || isDirty}
             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            {exporting === "pdf" ? "מייצא..." : "ייצוא PDF"}
+            {exporting === "pdf" ? "פותח..." : "ייצוא PDF"}
           </button>
           <button
             type="button"

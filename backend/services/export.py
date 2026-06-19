@@ -1,6 +1,6 @@
 import re
-from io import BytesIO
 from pathlib import Path
+from urllib.parse import quote
 
 import markdown
 import pypandoc
@@ -15,28 +15,33 @@ LEGACY_SLIDE_REF_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-PDF_CSS = """
+PRINT_CSS = """
 @page {
   size: A4;
-  margin: 2cm;
+  margin: 18mm 16mm;
 }
+* { box-sizing: border-box; }
 body {
-  font-family: NotebookFont, "Segoe UI", Arial, sans-serif;
-  font-size: 13px;
-  line-height: 1.7;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.75;
   direction: rtl;
   color: #1f2937;
+  max-width: 210mm;
+  margin: 0 auto;
+  padding: 24px;
+  background: #fff;
 }
-h1 { font-size: 22px; margin: 1.2em 0 0.6em; }
-h2 { font-size: 18px; margin: 1em 0 0.5em; }
-h3 { font-size: 15px; margin: 0.8em 0 0.4em; }
-p { margin: 0.6em 0; }
-ul, ol { margin: 0.6em 0; padding-right: 1.5em; }
+h1 { font-size: 24px; margin: 1.2em 0 0.6em; font-weight: 700; }
+h2 { font-size: 20px; margin: 1em 0 0.5em; font-weight: 600; }
+h3 { font-size: 16px; margin: 0.8em 0 0.4em; font-weight: 600; }
+p { margin: 0.65em 0; }
+ul, ol { margin: 0.65em 0; padding-right: 1.5em; }
 strong { font-weight: 700; }
 code, pre {
   direction: ltr;
   unicode-bidi: embed;
-  font-family: Consolas, monospace;
+  font-family: Consolas, "Courier New", monospace;
   background: #f3f4f6;
 }
 pre {
@@ -49,6 +54,7 @@ img {
   display: block;
   max-width: 100%;
   margin: 1em auto;
+  page-break-inside: avoid;
 }
 table {
   border-collapse: collapse;
@@ -59,6 +65,63 @@ th, td {
   border: 1px solid #d1d5db;
   padding: 0.4em 0.6em;
 }
+.katex { direction: ltr; unicode-bidi: embed; font-size: 1.05em; }
+.print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: -24px -24px 24px;
+  padding: 16px 24px;
+  background: #eef2ff;
+  border-bottom: 1px solid #c7d2fe;
+}
+.print-toolbar button {
+  border: none;
+  border-radius: 8px;
+  background: #4f46e5;
+  color: #fff;
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.print-toolbar button:hover { background: #4338ca; }
+.print-hint { font-size: 13px; color: #4338ca; }
+@media print {
+  body { padding: 0; max-width: none; }
+  .no-print { display: none !important; }
+}
+"""
+
+KATEX_CDN = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist"
+PRINT_SCRIPTS = f"""
+<script defer src="{KATEX_CDN}/katex.min.js"></script>
+<script defer src="{KATEX_CDN}/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {{
+  function renderMath() {{
+    if (typeof renderMathInElement !== "function") return;
+    renderMathInElement(document.body, {{
+      delimiters: [
+        {{ left: "$$", right: "$$", display: true }},
+        {{ left: "$", right: "$", display: false }},
+      ],
+      throwOnError: false,
+    }});
+  }}
+  renderMath();
+  setTimeout(renderMath, 300);
+
+  var params = new URLSearchParams(window.location.search);
+  if (params.get("autoprint") === "1") {{
+    setTimeout(function () {{ window.print(); }}, 900);
+  }}
+}});
+</script>
 """
 
 
@@ -68,69 +131,75 @@ def _ensure_exports_dir(lecture_path: Path) -> Path:
     return exports_dir
 
 
-def _register_export_font() -> None:
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-
-    font_candidates = [
-        Path("C:/Windows/Fonts/segoeui.ttf"),
-        Path("C:/Windows/Fonts/arial.ttf"),
-        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-    ]
-    for font_path in font_candidates:
-        if font_path.is_file():
-            pdfmetrics.registerFont(TTFont("NotebookFont", str(font_path)))
-            return
-
-
-def _pdf_link_callback(uri: str, _rel) -> str:
-    if uri.startswith("file:"):
-        return uri.replace("file:///", "").replace("file://", "")
-    return uri
-
-
-def _rewrite_image_paths_for_export(content: str, lecture_path: Path) -> str:
-    images_dir = (lecture_path / "extracted_images").resolve()
+def _clean_export_markdown(content: str, images_dir: Path) -> str:
+    content = LEGACY_SLIDE_REF_PATTERN.sub("", content)
 
     def replace_image(match: re.Match) -> str:
         alt = match.group(1)
         filename = match.group(2)
-        image_path = (images_dir / filename).resolve()
-        if not image_path.is_file():
+        if not (images_dir / filename).is_file():
             return ""
-        return f"![{alt}]({image_path.as_uri()})"
+        return match.group(0)
 
-    cleaned = LEGACY_SLIDE_REF_PATTERN.sub("", content)
-    return IMAGE_PATH_PATTERN.sub(replace_image, cleaned)
+    return IMAGE_PATH_PATTERN.sub(replace_image, content)
 
 
-def _markdown_to_html(content: str, lecture_path: Path) -> str:
-    export_content = _rewrite_image_paths_for_export(content, lecture_path)
+def _rewrite_image_paths_for_browser(
+    content: str,
+    lecture_id: str,
+    images_dir: Path,
+) -> str:
+    encoded_lecture = quote(lecture_id, safe="")
+
+    def replace_image(match: re.Match) -> str:
+        alt = match.group(1)
+        filename = match.group(2)
+        if not (images_dir / filename).is_file():
+            return ""
+        encoded_file = quote(filename, safe="")
+        return f"![{alt}](/api/lectures/{encoded_lecture}/images/{encoded_file})"
+
+    return IMAGE_PATH_PATTERN.sub(replace_image, content)
+
+
+def build_print_html(lecture_path: Path, lecture_id: str, *, autoprint: bool = False) -> str:
+    content = read_notebook(lecture_path)
+    images_dir = lecture_path / "extracted_images"
+    export_content = _clean_export_markdown(content, images_dir)
+    export_content = _rewrite_image_paths_for_browser(export_content, lecture_id, images_dir)
+
     body = markdown.markdown(
         export_content,
         extensions=["extra", "nl2br", "sane_lists", "tables"],
     )
+
+    title = lecture_path.name.replace("_", " ")
+
     return f"""<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head>
   <meta charset="utf-8">
-  <style>{PDF_CSS}</style>
+  <title>{title} — SmartNote</title>
+  <link rel="stylesheet" href="{KATEX_CDN}/katex.min.css">
+  <style>{PRINT_CSS}</style>
 </head>
-<body>{body}</body>
+<body>
+  <div class="print-toolbar no-print">
+    <p class="print-hint">להמרת המחברת ל-PDF: לחץ על הכפתור ובחר <strong>שמור כ-PDF</strong> / <strong>Microsoft Print to PDF</strong></p>
+    <button type="button" onclick="window.print()">🖨️ הדפס / שמור כ-PDF</button>
+  </div>
+  <article class="notebook-content">{body}</article>
+  {PRINT_SCRIPTS}
+</body>
 </html>"""
 
 
 def check_pdf_export_available() -> dict:
-    try:
-        from xhtml2pdf import pisa  # noqa: F401
-
-        return {"available": True, "engine": "xhtml2pdf", "message": "PDF export ready"}
-    except ImportError:
-        return {
-            "available": False,
-            "engine": None,
-            "message": "xhtml2pdf is not installed. Run: pip install xhtml2pdf",
-        }
+    return {
+        "available": True,
+        "engine": "browser_print",
+        "message": "PDF export uses browser print (Save as PDF)",
+    }
 
 
 def export_markdown(lecture_path: Path) -> tuple[Path, str, str]:
@@ -144,31 +213,10 @@ def export_markdown(lecture_path: Path) -> tuple[Path, str, str]:
 
 
 def export_pdf(lecture_path: Path) -> tuple[Path, str, str]:
-    try:
-        from xhtml2pdf import pisa
-    except ImportError as exc:
-        raise RuntimeError(
-            "PDF export requires xhtml2pdf. Install dependencies: pip install -r requirements.txt"
-        ) from exc
-
-    _register_export_font()
-    content = read_notebook(lecture_path)
-    html = _markdown_to_html(content, lecture_path)
-    exports_dir = _ensure_exports_dir(lecture_path)
-    output_path = exports_dir / "notebook.pdf"
-
-    result = BytesIO()
-    status = pisa.CreatePDF(
-        html,
-        dest=result,
-        encoding="utf-8",
-        link_callback=_pdf_link_callback,
+    raise RuntimeError(
+        "PDF export is handled via browser print. "
+        "Open GET /api/lectures/{lecture_id}/export/print?autoprint=1 from the notebook editor."
     )
-    if status.err:
-        raise RuntimeError("PDF export failed while rendering the notebook HTML")
-
-    output_path.write_bytes(result.getvalue())
-    return output_path, "application/pdf", f"{lecture_path.name}_notebook.pdf"
 
 
 def export_docx(lecture_path: Path) -> tuple[Path, str, str]:

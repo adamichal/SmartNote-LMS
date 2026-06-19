@@ -127,7 +127,7 @@ After fixing, restart the backend. On the next pipeline run, `pipeline.log` insi
 
 ### Export prerequisites
 
-- **PDF** — uses `xhtml2pdf` (pure Python, works on Windows). Run `pip install -r requirements.txt`.
+- **PDF** — opens a print preview in the browser (Hebrew + math render correctly). Choose **Save as PDF** / **Microsoft Print to PDF** in the print dialog.
 - **DOCX** — requires [Pandoc](https://pandoc.org/installing.html) installed and available on PATH.
 
 ### Slide images

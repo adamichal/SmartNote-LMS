@@ -22,7 +22,7 @@ def transcribe_audio(lecture_path: Path, audio_chunks: list[Path]) -> Path:
     total_chunks = len(audio_chunks)
 
     for index, chunk_path in enumerate(audio_chunks, start=1):
-        progress = 15 + round((index / total_chunks) * 55)
+        progress = 10 + round((index / total_chunks) * 40)
         write_job_status(
             lecture_path,
             status="processing",

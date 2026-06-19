@@ -1,1 +1,69 @@
 @import "tailwindcss";
+
+.notebook-content {
+  line-height: 1.75;
+  color: #1f2937;
+}
+
+.notebook-content h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin: 1.5rem 0 1rem;
+}
+
+.notebook-content h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.75rem;
+}
+
+.notebook-content h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+}
+
+.notebook-content p {
+  margin: 0.75rem 0;
+}
+
+.notebook-content ul,
+.notebook-content ol {
+  margin: 0.75rem 0;
+  padding-right: 1.5rem;
+}
+
+.notebook-content strong {
+  font-weight: 700;
+}
+
+.notebook-content code {
+  background: #f3f4f6;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+.notebook-content pre {
+  background: #f3f4f6;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  direction: ltr;
+  text-align: left;
+}
+
+.notebook-content .katex {
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+.notebook-editor {
+  color: #1f2937;
+  background: #fff;
+  unicode-bidi: plaintext;
+}
+
+.notebook-editor:focus {
+  outline: none;
+}

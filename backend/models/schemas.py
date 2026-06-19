@@ -69,3 +69,16 @@ class JobStatusResponse(BaseModel):
     error: str | None
     created_at: str
     completed_at: str | None
+    has_notebook: bool = False
+
+
+class NotebookResponse(BaseModel):
+    content: str
+
+
+class NotebookUpdate(BaseModel):
+    content: str = Field(min_length=1)
+
+
+class ExportRequest(BaseModel):
+    format: str = Field(pattern="^(md|pdf|docx)$")

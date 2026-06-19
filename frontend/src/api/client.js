@@ -70,6 +70,48 @@ export function retryLecture(lectureId) {
   });
 }
 
+export function getNotebook(lectureId) {
+  return request(`/lectures/${encodeURIComponent(lectureId)}/notebook`);
+}
+
+export function saveNotebook(lectureId, content) {
+  return request(`/lectures/${encodeURIComponent(lectureId)}/notebook`, {
+    method: "PUT",
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function exportNotebook(lectureId, format) {
+  const response = await fetch(`${API_BASE}/lectures/${encodeURIComponent(lectureId)}/export`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ format }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    const detail = error.detail;
+    const message = Array.isArray(detail)
+      ? detail.map((item) => item.msg).join(", ")
+      : detail || "Export failed";
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const filenameMatch = disposition.match(/filename="?([^";\n]+)"?/);
+  const filename = filenameMatch?.[1] || `notebook.${format}`;
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function uploadFile(file, fileType, onProgress) {
   const init = await request("/uploads/init", {
     method: "POST",

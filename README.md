@@ -107,4 +107,10 @@ After fixing, restart the backend. On the next pipeline run, `pipeline.log` insi
 - Phase 2 (course & lecture management) — complete
 - Phase 3 (local file path handling) — complete
 - Phase 4 (processing pipeline through PDF extraction) — complete
-- Phase 5 (Gemini AI editing & notebook editor) — pending
+- Phase 5 (Gemini AI editing & notebook assembly) — complete
+- Phase 6 (notebook editor & export) — complete
+
+### Export prerequisites
+
+- **PDF** — requires WeasyPrint (included in `requirements.txt`). On Windows you may need [GTK3 runtime](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows).
+- **DOCX** — requires [Pandoc](https://pandoc.org/installing.html) installed and available on PATH.

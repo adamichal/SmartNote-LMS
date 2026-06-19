@@ -3,9 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import { getLectureStatus, retryLecture } from "../api/client";
 
 const STAGES = [
-  { key: "audio_extraction", label: "חילוץ אודיו", min: 0, max: 15 },
-  { key: "transcribing", label: "תמלול (Whisper)", min: 15, max: 70 },
-  { key: "pdf_processing", label: "עיבוד PDF", min: 70, max: 100 },
+  { key: "audio_extraction", label: "חילוץ אודיו", min: 0, max: 10 },
+  { key: "transcribing", label: "תמלול (Whisper)", min: 10, max: 50 },
+  { key: "pdf_processing", label: "עיבוד PDF", min: 50, max: 55 },
+  { key: "ai_editing", label: "עריכת AI (Gemini)", min: 55, max: 88 },
+  { key: "notebook_assembly", label: "הרכבת מחברת", min: 88, max: 100 },
 ];
 
 function stageState(stageKey, currentStage, progress, status) {
@@ -156,7 +158,7 @@ export default function ProcessingProgress() {
         )}
 
         <div className="mt-6 flex gap-3">
-          {jobStatus === "completed" && (
+          {jobStatus === "completed" && status?.has_notebook && (
             <Link
               to={`/courses/${encodeURIComponent(decodedCourse)}/lectures/${encodeURIComponent(decodedLecture)}/notebook`}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
@@ -164,14 +166,14 @@ export default function ProcessingProgress() {
               הצג מחברת
             </Link>
           )}
-          {jobStatus === "error" && (
+          {(jobStatus === "error" || (jobStatus === "completed" && !status?.has_notebook)) && (
             <button
               type="button"
               onClick={handleRetry}
               disabled={retrying}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
-              {retrying ? "מנסה שוב..." : "נסה שוב"}
+              {retrying ? "מנסה שוב..." : jobStatus === "completed" ? "המשך עיבוד AI" : "נסה שוב"}
             </button>
           )}
         </div>

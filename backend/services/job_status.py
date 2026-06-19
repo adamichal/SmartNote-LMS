@@ -66,5 +66,6 @@ def get_lecture_status(lecture_id: str) -> dict:
         "course_name": find_course_name_for_lecture(lecture_id),
         "number": number,
         "topic": topic,
+        "has_notebook": (lecture_path / "final_notebook.md").exists(),
         **status,
     }

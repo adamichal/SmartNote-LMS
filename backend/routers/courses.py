@@ -23,4 +23,10 @@ async def list_lectures(course_name: str):
 
 @router.post("/{course_name}/lectures", response_model=LectureResponse, status_code=201)
 async def create_lecture(course_name: str, body: LectureCreate):
-    return fs.create_lecture(course_name, body.number, body.topic)
+    return fs.create_lecture(
+        course_name,
+        body.number,
+        body.topic,
+        media_path=body.media_path,
+        pdf_path=body.pdf_path,
+    )

@@ -1,5 +1,6 @@
 import json
 import re
+import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,6 +8,7 @@ from pathlib import Path
 from fastapi import HTTPException
 
 from backend.config import COURSES_BASE_PATH
+from backend.services import files as file_service
 
 INVALID_NAME_CHARS = re.compile(r'[<>:"/\\|?*\x00]')
 LECTURE_FOLDER_PATTERN = re.compile(r"^(\d{2})_(.+)$")
@@ -118,7 +120,18 @@ def list_lectures(course_name: str) -> list[dict]:
     return lectures
 
 
-def create_lecture(course_name: str, number: int, topic: str) -> dict:
+def create_lecture(
+    course_name: str,
+    number: int,
+    topic: str,
+    media_path: str | None = None,
+    pdf_path: str | None = None,
+) -> dict:
+    if media_path:
+        file_service.require_valid_file(media_path, "media")
+    if pdf_path:
+        file_service.require_valid_file(pdf_path, "pdf")
+
     course_path = get_course_path_or_404(course_name)
     folder_name = lecture_folder_name(number, topic)
     lecture_path = course_path / folder_name
@@ -127,23 +140,39 @@ def create_lecture(course_name: str, number: int, topic: str) -> dict:
         raise HTTPException(status_code=409, detail="Lecture already exists")
 
     lecture_path.mkdir(parents=True, exist_ok=False)
-    for subdir in LECTURE_SUBDIRS:
-        (lecture_path / subdir).mkdir()
+    try:
+        for subdir in LECTURE_SUBDIRS:
+            (lecture_path / subdir).mkdir()
 
-    now = datetime.now(timezone.utc).isoformat()
-    job_status = {
-        "job_id": str(uuid.uuid4()),
-        "status": "pending",
-        "stage": None,
-        "progress_pct": 0,
-        "error": None,
-        "created_at": now,
-        "completed_at": None,
-    }
-    (lecture_path / "job_status.json").write_text(
-        json.dumps(job_status, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+        raw_media_dir = lecture_path / "raw_media"
+        if media_path:
+            file_service.copy_media_file(
+                file_service.require_valid_file(media_path, "media"),
+                raw_media_dir,
+            )
+        if pdf_path:
+            file_service.copy_pdf_file(
+                file_service.require_valid_file(pdf_path, "pdf"),
+                raw_media_dir,
+            )
+
+        now = datetime.now(timezone.utc).isoformat()
+        job_status = {
+            "job_id": str(uuid.uuid4()),
+            "status": "pending",
+            "stage": None,
+            "progress_pct": 0,
+            "error": None,
+            "created_at": now,
+            "completed_at": None,
+        }
+        (lecture_path / "job_status.json").write_text(
+            json.dumps(job_status, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except Exception:
+        shutil.rmtree(lecture_path, ignore_errors=True)
+        raise
 
     return {
         "id": folder_name,

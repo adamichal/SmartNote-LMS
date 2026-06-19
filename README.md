@@ -26,15 +26,13 @@ SmartNote_Project/
 ├── backend/          # FastAPI application
 ├── frontend/         # React + Vite + TailwindCSS
 ├── Courses/          # Local storage for course/lecture data
-├── requirements.txt  # Python dependencies
+├── requirements.txt  # Python dependencies (project root)
 └── .env              # API keys and paths (not committed)
 ```
 
-## Setup
+## Setup (first time only)
 
 ### 1. Environment variables
-
-Copy the example file and fill in your values:
 
 ```powershell
 copy .env.example .env
@@ -46,10 +44,10 @@ Required variables:
 |---|---|
 | `OPENAI_API_KEY` | OpenAI API key (Whisper transcription) |
 | `GEMINI_API_KEY` | Google Gemini API key (AI editing) |
-| `COURSES_BASE_PATH` | AbsolutePath to the `Courses/` folder |
+| `COURSES_BASE_PATH` | Absolute path to the `Courses/` folder |
 | `FFMPEG_PATH` | Full path to `ffmpeg.exe` (if not on PATH) |
 
-### 2. Backend
+### 2. Install dependencies
 
 From the project root:
 
@@ -57,18 +55,30 @@ From the project root:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+```
+
+```powershell
+cd frontend
+npm install
+cd ..
+```
+
+## Running the app
+
+**Terminal 1 — Backend** (from project root):
+
+```powershell
+cd C:\Users\user\Projects\SmartNote_Project
+.\.venv\Scripts\Activate.ps1
 uvicorn backend.main:app --reload --port 8000
 ```
 
 Health check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
-### 3. Frontend
-
-In a second terminal:
+**Terminal 2 — Frontend**:
 
 ```powershell
-cd frontend
-npm install
+cd C:\Users\user\Projects\SmartNote_Project\frontend
 npm run dev
 ```
 
@@ -78,4 +88,7 @@ The Vite dev server proxies `/api` requests to the backend on port 8000.
 
 ## Development status
 
-Phase 1 (skeleton) is complete. Course management, file handling, processing pipeline, and AI integration will be added in later phases.
+- Phase 1 (skeleton) — complete
+- Phase 2 (course & lecture management) — complete
+- Phase 3 (local file path handling) — complete
+- Phase 4+ (processing pipeline, AI, editor) — pending

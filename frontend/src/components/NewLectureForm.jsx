@@ -1,11 +1,26 @@
 import { useState } from "react";
+import PathInput from "./PathInput";
 
 export default function NewLectureForm({ onCreate }) {
   const [number, setNumber] = useState("");
   const [topic, setTopic] = useState("");
+  const [mediaPath, setMediaPath] = useState("");
+  const [pdfPath, setPdfPath] = useState("");
+  const [mediaValid, setMediaValid] = useState(null);
+  const [pdfValid, setPdfValid] = useState(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  function resetForm() {
+    setNumber("");
+    setTopic("");
+    setMediaPath("");
+    setPdfPath("");
+    setMediaValid(null);
+    setPdfValid(null);
+    setError("");
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -18,13 +33,23 @@ export default function NewLectureForm({ onCreate }) {
       setError("יש להזין נושא");
       return;
     }
+    if (mediaPath.trim() && mediaValid !== true) {
+      setError("נתיב המדיה אינו תקין או עדיין נבדק");
+      return;
+    }
+    if (pdfPath.trim() && pdfValid !== true) {
+      setError("נתיב ה-PDF אינו תקין או עדיין נבדק");
+      return;
+    }
 
     setSubmitting(true);
     setError("");
     try {
-      await onCreate(parsedNumber, topic.trim());
-      setNumber("");
-      setTopic("");
+      await onCreate(parsedNumber, topic.trim(), {
+        mediaPath: mediaPath.trim() || null,
+        pdfPath: pdfPath.trim() || null,
+      });
+      resetForm();
       setExpanded(false);
     } catch (err) {
       setError(typeof err.message === "string" ? err.message : "יצירת ההרצאה נכשלה");
@@ -78,6 +103,27 @@ export default function NewLectureForm({ onCreate }) {
             placeholder="מערכת העצבים"
           />
         </div>
+
+        <PathInput
+          id="media-path"
+          label="🎬 מדיה (MP4/MP3) — נתיב מקומי"
+          placeholder="C:\Lectures\lecture.mp4"
+          fileType="media"
+          value={mediaPath}
+          onChange={setMediaPath}
+          onValidationChange={setMediaValid}
+        />
+
+        <PathInput
+          id="pdf-path"
+          label="📄 מצגת (PDF) — נתיב מקומי"
+          placeholder="C:\Lectures\slides.pdf"
+          fileType="pdf"
+          value={pdfPath}
+          onChange={setPdfPath}
+          onValidationChange={setPdfValid}
+        />
+
         {error && (
           <p className="text-sm text-red-600 sm:col-span-2">{error}</p>
         )}
@@ -92,8 +138,8 @@ export default function NewLectureForm({ onCreate }) {
           <button
             type="button"
             onClick={() => {
+              resetForm();
               setExpanded(false);
-              setError("");
             }}
             className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
           >

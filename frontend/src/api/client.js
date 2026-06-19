@@ -34,9 +34,20 @@ export function getLectures(courseName) {
   return request(`/courses/${encodeURIComponent(courseName)}/lectures`);
 }
 
-export function createLecture(courseName, number, topic) {
+export function createLecture(courseName, number, topic, { mediaPath = null, pdfPath = null } = {}) {
+  const body = { number, topic };
+  if (mediaPath) body.media_path = mediaPath;
+  if (pdfPath) body.pdf_path = pdfPath;
+
   return request(`/courses/${encodeURIComponent(courseName)}/lectures`, {
     method: "POST",
-    body: JSON.stringify({ number, topic }),
+    body: JSON.stringify(body),
+  });
+}
+
+export function validateFilePath(path, fileType) {
+  return request("/files/validate", {
+    method: "POST",
+    body: JSON.stringify({ path, file_type: fileType }),
   });
 }

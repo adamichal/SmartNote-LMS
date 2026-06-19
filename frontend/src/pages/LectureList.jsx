@@ -28,8 +28,8 @@ export default function LectureList() {
     loadLectures();
   }, [loadLectures]);
 
-  async function handleCreateLecture(number, topic) {
-    await createLecture(decodedName, number, topic);
+  async function handleCreateLecture(number, topic, paths = {}) {
+    await createLecture(decodedName, number, topic, paths);
     await loadLectures();
   }
 

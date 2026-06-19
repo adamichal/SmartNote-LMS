@@ -4,8 +4,9 @@ from pathlib import Path
 
 import google.generativeai as genai
 
-from backend.config import GEMINI_API_KEY, GEMINI_MODEL
+from backend.config import GEMINI_API_KEY
 from backend.services.filesystem import parse_lecture_folder
+from backend.services.gemini_utils import resolve_gemini_model
 from backend.services.job_status import log_pipeline, write_job_status
 
 SYSTEM_PROMPT = """You are an expert academic editor and note-taker. You receive:
@@ -95,7 +96,8 @@ def generate_notebook_draft(lecture_path: Path) -> Path:
         date=date.today().isoformat(),
     )
 
-    log_pipeline(lecture_path, f"Calling Gemini model: {GEMINI_MODEL}")
+    model_name = resolve_gemini_model()
+    log_pipeline(lecture_path, f"Calling Gemini model: {model_name}")
     write_job_status(
         lecture_path,
         status="processing",
@@ -105,7 +107,7 @@ def generate_notebook_draft(lecture_path: Path) -> Path:
     )
 
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel(GEMINI_MODEL, system_instruction=SYSTEM_PROMPT)
+    model = genai.GenerativeModel(model_name, system_instruction=SYSTEM_PROMPT)
     response = model.generate_content(user_prompt)
 
     if not response.text:

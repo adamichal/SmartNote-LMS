@@ -14,7 +14,7 @@ UPLOADS_BASE_PATH = Path(
 ).resolve()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
 # Raw value from .env; resolved at runtime via ffmpeg_utils (with PATH fallback).
 FFMPEG_PATH = os.getenv("FFMPEG_PATH", "").strip()
 

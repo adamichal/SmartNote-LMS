@@ -15,6 +15,8 @@ class LectureCreate(BaseModel):
     topic: str = Field(min_length=1, max_length=200)
     media_upload_id: str | None = None
     pdf_upload_id: str | None = None
+    transcript_upload_id: str | None = None
+    pdf_extra_upload_ids: list[str] = Field(default_factory=list)
     media_path: str | None = None
     pdf_path: str | None = None
 
@@ -28,7 +30,7 @@ class LectureResponse(BaseModel):
 
 class UploadInitRequest(BaseModel):
     filename: str = Field(min_length=1)
-    file_type: str = Field(pattern="^(media|pdf)$")
+    file_type: str = Field(pattern="^(media|pdf|transcript|pdf_extra)$")
     total_size: int = Field(gt=0)
 
 
@@ -70,6 +72,7 @@ class JobStatusResponse(BaseModel):
     created_at: str
     completed_at: str | None
     has_notebook: bool = False
+    skipped_stages: list[str] = Field(default_factory=list)
 
 
 class NotebookResponse(BaseModel):

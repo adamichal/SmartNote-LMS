@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { exportNotebook, getNotebook, saveNotebook } from "../api/client";
-import MarkdownPreview from "../components/MarkdownPreview";
+import WysiwygNotebookEditor from "../components/WysiwygNotebookEditor";
 import "katex/dist/katex.min.css";
 
 export default function NotebookEditor() {
@@ -128,29 +128,11 @@ export default function NotebookEditor() {
       )}
 
       {!loading && !loadError && (
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-          <div className="flex min-h-0 flex-col rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="border-b border-gray-200 px-4 py-2 text-sm font-medium text-gray-600">
-              Markdown
-            </div>
-            <textarea
-              dir="rtl"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="notebook-editor min-h-0 flex-1 resize-none border-0 p-4 font-mono text-sm leading-relaxed focus:outline-none"
-              spellCheck={false}
-            />
-          </div>
-
-          <div className="flex min-h-0 flex-col rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="border-b border-gray-200 px-4 py-2 text-sm font-medium text-gray-600">
-              תצוגה מקדימה
-            </div>
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <MarkdownPreview content={content} lectureId={decodedLecture} />
-            </div>
-          </div>
-        </div>
+        <WysiwygNotebookEditor
+          content={content}
+          lectureId={decodedLecture}
+          onChange={setContent}
+        />
       )}
     </div>
   );

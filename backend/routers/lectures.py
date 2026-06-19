@@ -9,7 +9,7 @@ from backend.models.schemas import (
     NotebookResponse,
     NotebookUpdate,
 )
-from backend.services import export as export_service, job_status, notebook, pipeline
+from backend.services import export as export_service, job_status, notebook, pipeline_runner
 from backend.services.job_status import find_lecture_path
 
 router = APIRouter(prefix="/api/lectures", tags=["lectures"])
@@ -35,7 +35,7 @@ async def get_lecture_status(lecture_id: str):
 @router.post("/{lecture_id}/retry", response_model=JobStatusResponse)
 async def retry_lecture(lecture_id: str, background_tasks: BackgroundTasks):
     lecture_path = find_lecture_path(lecture_id)
-    background_tasks.add_task(pipeline.retry_pipeline, lecture_path)
+    background_tasks.add_task(pipeline_runner.submit_retry, lecture_path)
     return job_status.get_lecture_status(lecture_id)
 
 

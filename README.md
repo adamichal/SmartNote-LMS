@@ -70,7 +70,7 @@ cd ..
 ```powershell
 cd C:\Users\user\Projects\SmartNote_Project
 .\.venv\Scripts\Activate.ps1
-uvicorn backend.main:app --reload --port 8000
+uvicorn backend.main:app --reload --port 8000 --reload-dir backend
 ```
 
 Health check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
@@ -85,6 +85,21 @@ npm run dev
 App: [http://localhost:5173](http://localhost:5173)
 
 The Vite dev server proxies `/api` requests to the backend on port 8000.
+
+Use `--reload-dir backend` so file changes inside `Courses/` (pipeline output) do not restart the server mid-processing.
+
+### Creating lectures
+
+Each lecture requires a **presentation PDF**. You must also provide **either**:
+
+- an **MP4/MP3** recording (Whisper will transcribe it), or
+- a **transcript `.txt` file** (skips Whisper; optionally skip media entirely)
+
+You can add **extra PDF sources** (articles, handouts) to enrich the AI summary.
+
+### Parallel processing
+
+You can create and process **multiple lectures at the same time**. Pipelines run in a background thread pool (up to 3 concurrent jobs). Each lecture has its own progress page.
 
 ### FFmpeg troubleshooting
 

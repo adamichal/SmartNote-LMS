@@ -64,6 +64,14 @@
   unicode-bidi: plaintext;
 }
 
-.notebook-editor:focus {
-  outline: none;
+.notebook-wysiwyg {
+  min-height: 60vh;
+}
+
+.wysiwyg-editor .mdxeditor-toolbar {
+  direction: ltr;
+}
+
+.wysiwyg-editor .mdxeditor-root-contenteditable {
+  direction: rtl;
 }

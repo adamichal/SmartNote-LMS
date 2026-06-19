@@ -48,14 +48,26 @@ export function getLectures(courseName) {
   return request(`/courses/${encodeURIComponent(courseName)}/lectures`);
 }
 
-export function createLecture(courseName, number, topic, { mediaUploadId, pdfUploadId } = {}) {
+export function createLecture(
+  courseName,
+  number,
+  topic,
+  {
+    mediaUploadId,
+    pdfUploadId,
+    transcriptUploadId,
+    pdfExtraUploadIds = [],
+  } = {},
+) {
   return request(`/courses/${encodeURIComponent(courseName)}/lectures`, {
     method: "POST",
     body: JSON.stringify({
       number,
       topic,
-      media_upload_id: mediaUploadId,
-      pdf_upload_id: pdfUploadId,
+      media_upload_id: mediaUploadId || null,
+      pdf_upload_id: pdfUploadId || null,
+      transcript_upload_id: transcriptUploadId || null,
+      pdf_extra_upload_ids: pdfExtraUploadIds,
     }),
   });
 }

@@ -10,8 +10,8 @@ from backend.services.gemini_utils import get_client, resolve_gemini_model
 from backend.services.job_status import log_pipeline, write_job_status
 
 SYSTEM_PROMPT = """You are an expert academic editor and note-taker. You receive:
-1. A raw Hebrew lecture transcript (from Whisper, may contain errors)
-2. Extracted text from the lecture's PDF presentation slides
+1. A Hebrew lecture transcript (from Whisper or a user-provided file, may contain errors)
+2. Extracted text from the lecture PDFs (presentation and any supplementary materials)
 
 Your job is to produce a complete, structured Hebrew study notebook in Markdown format.
 Respond ONLY with the Markdown content. No preamble, no explanation."""
@@ -19,7 +19,7 @@ Respond ONLY with the Markdown content. No preamble, no explanation."""
 USER_PROMPT_TEMPLATE = """## Raw Transcript:
 {raw_transcript}
 
-## PDF Slide Text (Source of Truth for terminology):
+## PDF Text (presentation + supplementary sources — source of truth for terminology):
 {pdf_text}
 
 ## Strict Rules:

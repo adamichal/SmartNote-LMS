@@ -6,38 +6,53 @@ from backend.services.ffmpeg_utils import resolve_ffmpeg_executable
 from backend.services.job_status import log_pipeline, write_job_status
 
 
+def _has_transcript(lecture_path: Path) -> bool:
+    transcript_path = lecture_path / "transcripts" / "raw_transcript.txt"
+    return transcript_path.exists() and transcript_path.stat().st_size > 0
+
+
 def run_pipeline(lecture_path: Path) -> None:
     log_pipeline(lecture_path, "Pipeline started")
 
     try:
-        ffmpeg_path = resolve_ffmpeg_executable()
-        log_pipeline(lecture_path, f"Using FFmpeg: {ffmpeg_path}")
+        if _has_transcript(lecture_path):
+            log_pipeline(lecture_path, "Transcript provided — skipping audio extraction and Whisper")
+            write_job_status(
+                lecture_path,
+                status="processing",
+                stage="transcribing",
+                progress_pct=50,
+                error=None,
+            )
+        else:
+            ffmpeg_path = resolve_ffmpeg_executable()
+            log_pipeline(lecture_path, f"Using FFmpeg: {ffmpeg_path}")
 
-        write_job_status(
-            lecture_path,
-            status="processing",
-            stage="audio_extraction",
-            progress_pct=5,
-            error=None,
-        )
-        mp3_path = audio.extract_audio(lecture_path)
-        write_job_status(
-            lecture_path,
-            status="processing",
-            stage="audio_extraction",
-            progress_pct=10,
-            error=None,
-        )
+            write_job_status(
+                lecture_path,
+                status="processing",
+                stage="audio_extraction",
+                progress_pct=5,
+                error=None,
+            )
+            mp3_path = audio.extract_audio(lecture_path)
+            write_job_status(
+                lecture_path,
+                status="processing",
+                stage="audio_extraction",
+                progress_pct=10,
+                error=None,
+            )
 
-        audio_chunks = audio.split_audio_if_needed(lecture_path, mp3_path)
-        write_job_status(
-            lecture_path,
-            status="processing",
-            stage="transcribing",
-            progress_pct=10,
-            error=None,
-        )
-        transcription.transcribe_audio(lecture_path, audio_chunks)
+            audio_chunks = audio.split_audio_if_needed(lecture_path, mp3_path)
+            write_job_status(
+                lecture_path,
+                status="processing",
+                stage="transcribing",
+                progress_pct=10,
+                error=None,
+            )
+            transcription.transcribe_audio(lecture_path, audio_chunks)
 
         write_job_status(
             lecture_path,

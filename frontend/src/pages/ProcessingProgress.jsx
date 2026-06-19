@@ -10,7 +10,8 @@ const STAGES = [
   { key: "notebook_assembly", label: "הרכבת מחברת", min: 88, max: 100 },
 ];
 
-function stageState(stageKey, currentStage, progress, status) {
+function stageState(stageKey, currentStage, progress, status, skippedStages = []) {
+  if (skippedStages.includes(stageKey)) return "skipped";
   if (status === "completed") return "done";
   if (status === "error") {
     const failedIndex = STAGES.findIndex((stage) => stage.key === currentStage);
@@ -31,9 +32,18 @@ function stageState(stageKey, currentStage, progress, status) {
 
 function StageIcon({ state }) {
   if (state === "done") return <span className="text-green-600">✅</span>;
+  if (state === "skipped") return <span className="text-gray-500">⏭</span>;
   if (state === "active") return <span className="text-blue-600">🔄</span>;
   if (state === "error") return <span className="text-red-600">❌</span>;
   return <span className="text-gray-400">⏸</span>;
+}
+
+function stageLabel(state) {
+  if (state === "done") return "מושלם";
+  if (state === "skipped") return "דולג";
+  if (state === "active") return "פעיל";
+  if (state === "error") return "נכשל";
+  return "ממתין";
 }
 
 export default function ProcessingProgress() {
@@ -94,6 +104,7 @@ export default function ProcessingProgress() {
 
   const progress = status?.progress_pct ?? 0;
   const jobStatus = status?.status ?? "pending";
+  const skippedStages = status?.skipped_stages ?? [];
 
   return (
     <div>
@@ -129,7 +140,13 @@ export default function ProcessingProgress() {
 
         <ul className="space-y-3">
           {STAGES.map((stage) => {
-            const state = stageState(stage.key, status?.stage, progress, jobStatus);
+            const state = stageState(
+              stage.key,
+              status?.stage,
+              progress,
+              jobStatus,
+              skippedStages,
+            );
             return (
               <li
                 key={stage.key}
@@ -139,9 +156,7 @@ export default function ProcessingProgress() {
                   <StageIcon state={state} />
                   <span className="font-medium text-gray-900">{stage.label}</span>
                 </span>
-                <span className="text-sm text-gray-500">
-                  {state === "done" ? "מושלם" : state === "active" ? "פעיל" : state === "error" ? "נכשל" : "ממתין"}
-                </span>
+                <span className="text-sm text-gray-500">{stageLabel(state)}</span>
               </li>
             );
           })}

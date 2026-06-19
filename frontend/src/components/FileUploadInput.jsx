@@ -1,8 +1,12 @@
 import { useRef, useState } from "react";
 import { uploadFile } from "../api/client";
 
-const MEDIA_EXTENSIONS = [".mp4", ".mp3"];
-const PDF_EXTENSIONS = [".pdf"];
+const EXTENSIONS_BY_TYPE = {
+  media: [".mp4", ".mp3"],
+  pdf: [".pdf"],
+  pdf_extra: [".pdf"],
+  transcript: [".txt"],
+};
 
 function CheckIcon() {
   return (
@@ -18,7 +22,7 @@ function CheckIcon() {
 
 function validateExtension(filename, fileType) {
   const extension = filename.slice(filename.lastIndexOf(".")).toLowerCase();
-  const allowed = fileType === "media" ? MEDIA_EXTENSIONS : PDF_EXTENSIONS;
+  const allowed = EXTENSIONS_BY_TYPE[fileType] || [];
   return allowed.includes(extension);
 }
 
@@ -27,6 +31,7 @@ export default function FileUploadInput({
   label,
   accept,
   fileType,
+  compact = false,
   onUploadComplete,
   onUploadReset,
 }) {
@@ -65,9 +70,11 @@ export default function FileUploadInput({
   }
 
   return (
-    <div className="sm:col-span-2">
-      <span className="block text-sm font-medium text-gray-700">{label}</span>
-      <div className="mt-2 flex flex-wrap items-center gap-3">
+    <div className={compact ? "" : "sm:col-span-2"}>
+      {label && (
+        <span className="block text-sm font-medium text-gray-700">{label}</span>
+      )}
+      <div className={`${label ? "mt-2" : ""} flex flex-wrap items-center gap-3`}>
         <button
           type="button"
           onClick={() => inputRef.current?.click()}

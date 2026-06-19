@@ -3,13 +3,9 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks
 
 from backend.models.schemas import CourseCreate, CourseResponse, LectureCreate, LectureResponse
-from backend.services import filesystem as fs, pipeline
+from backend.services import filesystem as fs, pipeline_runner
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
-
-
-def _start_pipeline(lecture_path_str: str) -> None:
-    pipeline.run_pipeline(Path(lecture_path_str))
 
 
 @router.get("", response_model=list[CourseResponse])
@@ -44,10 +40,15 @@ async def create_lecture(
         body.topic,
         media_upload_id=body.media_upload_id,
         pdf_upload_id=body.pdf_upload_id,
+        transcript_upload_id=body.transcript_upload_id,
+        pdf_extra_upload_ids=body.pdf_extra_upload_ids,
         media_path=body.media_path,
         pdf_path=body.pdf_path,
     )
-    background_tasks.add_task(_start_pipeline, result.pop("lecture_path"))
+    background_tasks.add_task(
+        pipeline_runner.submit_pipeline,
+        Path(result.pop("lecture_path")),
+    )
     return result
 
 

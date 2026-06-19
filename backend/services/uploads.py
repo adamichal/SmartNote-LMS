@@ -11,6 +11,8 @@ from backend.config import UPLOADS_BASE_PATH
 from backend.services.files import MEDIA_EXTENSIONS, PDF_EXTENSIONS
 
 CONTENT_RANGE_PATTERN = re.compile(r"^bytes (\d+)-(\d+)/(\d+)$")
+TRANSCRIPT_EXTENSIONS = {".txt"}
+ALLOWED_FILE_TYPES = {"media", "pdf", "transcript", "pdf_extra"}
 
 
 def _upload_dir(upload_id: str) -> Path:
@@ -40,8 +42,16 @@ def _save_meta(upload_id: str, meta: dict) -> None:
 
 
 def _validate_filename(filename: str, file_type: str) -> str:
-    allowed = MEDIA_EXTENSIONS if file_type == "media" else PDF_EXTENSIONS
     extension = Path(filename).suffix.lower()
+    if file_type == "media":
+        allowed = MEDIA_EXTENSIONS
+    elif file_type in {"pdf", "pdf_extra"}:
+        allowed = PDF_EXTENSIONS
+    elif file_type == "transcript":
+        allowed = TRANSCRIPT_EXTENSIONS
+    else:
+        raise HTTPException(status_code=400, detail="Invalid file type")
+
     if extension not in allowed:
         expected = ", ".join(sorted(allowed))
         raise HTTPException(
@@ -52,8 +62,11 @@ def _validate_filename(filename: str, file_type: str) -> str:
 
 
 def init_upload(filename: str, file_type: str, total_size: int) -> dict:
-    if file_type not in {"media", "pdf"}:
-        raise HTTPException(status_code=400, detail="file_type must be 'media' or 'pdf'")
+    if file_type not in ALLOWED_FILE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="file_type must be one of: media, pdf, transcript, pdf_extra",
+        )
     if total_size <= 0:
         raise HTTPException(status_code=400, detail="total_size must be positive")
 
@@ -131,11 +144,27 @@ def finalize_upload_to_raw_media(upload_id: str, raw_media_dir: Path) -> None:
 
     if meta["file_type"] == "media":
         dest_name = "lecture.mp4" if meta["extension"] == ".mp4" else "lecture.mp3"
-    else:
+    elif meta["file_type"] == "pdf":
         dest_name = "presentation.pdf"
+    elif meta["file_type"] == "pdf_extra":
+        existing = sorted(raw_media_dir.glob("extra_material_*.pdf"))
+        dest_name = f"extra_material_{len(existing) + 1}.pdf"
+    else:
+        raise HTTPException(status_code=400, detail="Use finalize_transcript for transcript uploads")
 
     raw_media_dir.mkdir(parents=True, exist_ok=True)
     shutil.move(str(part_path), str(raw_media_dir / dest_name))
+    shutil.rmtree(_upload_dir(upload_id), ignore_errors=True)
+
+
+def finalize_transcript_upload(upload_id: str, lecture_path: Path) -> None:
+    meta = require_complete_upload(upload_id)
+    if meta["file_type"] != "transcript":
+        raise HTTPException(status_code=400, detail="Upload is not a transcript")
+
+    transcripts_dir = lecture_path / "transcripts"
+    transcripts_dir.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(_part_path(upload_id)), str(transcripts_dir / "raw_transcript.txt"))
     shutil.rmtree(_upload_dir(upload_id), ignore_errors=True)
 
 

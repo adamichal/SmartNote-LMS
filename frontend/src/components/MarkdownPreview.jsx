@@ -1,17 +1,11 @@
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
-
-export function rewriteImageSrc(src, lectureId) {
-  if (!src) return src;
-  if (src.startsWith("./extracted_images/")) {
-    const filename = src.replace("./extracted_images/", "");
-    return `/api/lectures/${encodeURIComponent(lectureId)}/images/${encodeURIComponent(filename)}`;
-  }
-  return src;
-}
+import { prepareMarkdownForDisplay } from "../utils/markdownImages";
 
 export default function MarkdownPreview({ content, lectureId }) {
+  const displayContent = prepareMarkdownForDisplay(content, lectureId);
+
   return (
     <article dir="rtl" className="notebook-content h-full overflow-y-auto p-6">
       <ReactMarkdown
@@ -20,14 +14,15 @@ export default function MarkdownPreview({ content, lectureId }) {
         components={{
           img: ({ src, alt }) => (
             <img
-              src={rewriteImageSrc(src, lectureId)}
+              src={src}
               alt={alt || ""}
               className="mx-auto my-4 max-w-full rounded-lg"
+              loading="lazy"
             />
           ),
         }}
       >
-        {content}
+        {displayContent}
       </ReactMarkdown>
     </article>
   );

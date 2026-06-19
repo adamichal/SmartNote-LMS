@@ -8,6 +8,7 @@ from backend.config import GEMINI_API_KEY, GEMINI_MODEL
 from backend.routers import courses, files, lectures, uploads
 from backend.services.ffmpeg_utils import verify_ffmpeg_on_startup
 from backend.services.export import check_pdf_export_available
+from backend.services.gemini_utils import verify_gemini_on_startup
 
 logging.basicConfig(level=logging.INFO)
 

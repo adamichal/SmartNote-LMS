@@ -12,7 +12,8 @@ from backend.services.files import MEDIA_EXTENSIONS, PDF_EXTENSIONS
 
 CONTENT_RANGE_PATTERN = re.compile(r"^bytes (\d+)-(\d+)/(\d+)$")
 TRANSCRIPT_EXTENSIONS = {".txt"}
-ALLOWED_FILE_TYPES = {"media", "pdf", "transcript", "pdf_extra"}
+COURSE_MATERIAL_EXTENSIONS = {".pdf", ".txt", ".md"}
+ALLOWED_FILE_TYPES = {"media", "pdf", "transcript", "pdf_extra", "course_material"}
 
 
 def _upload_dir(upload_id: str) -> Path:
@@ -49,6 +50,8 @@ def _validate_filename(filename: str, file_type: str) -> str:
         allowed = PDF_EXTENSIONS
     elif file_type == "transcript":
         allowed = TRANSCRIPT_EXTENSIONS
+    elif file_type == "course_material":
+        allowed = COURSE_MATERIAL_EXTENSIONS
     else:
         raise HTTPException(status_code=400, detail="Invalid file type")
 
@@ -65,7 +68,7 @@ def init_upload(filename: str, file_type: str, total_size: int) -> dict:
     if file_type not in ALLOWED_FILE_TYPES:
         raise HTTPException(
             status_code=400,
-            detail="file_type must be one of: media, pdf, transcript, pdf_extra",
+            detail="file_type must be one of: media, pdf, transcript, pdf_extra, course_material",
         )
     if total_size <= 0:
         raise HTTPException(status_code=400, detail="total_size must be positive")
@@ -166,6 +169,24 @@ def finalize_transcript_upload(upload_id: str, lecture_path: Path) -> None:
     transcripts_dir.mkdir(parents=True, exist_ok=True)
     shutil.move(str(_part_path(upload_id)), str(transcripts_dir / "raw_transcript.txt"))
     shutil.rmtree(_upload_dir(upload_id), ignore_errors=True)
+
+
+def finalize_upload_to_course_materials(upload_id: str, course_path: Path) -> Path:
+    meta = require_complete_upload(upload_id)
+    if meta["file_type"] != "course_material":
+        raise HTTPException(status_code=400, detail="Upload is not a course material")
+
+    from backend.services.course_context import ensure_course_materials_dir
+
+    materials_dir = ensure_course_materials_dir(course_path)
+    dest_name = Path(meta["filename"]).name
+    dest_path = materials_dir / dest_name
+    if dest_path.exists():
+        raise HTTPException(status_code=409, detail="A file with this name already exists")
+
+    shutil.move(str(_part_path(upload_id)), str(dest_path))
+    shutil.rmtree(_upload_dir(upload_id), ignore_errors=True)
+    return dest_path
 
 
 def cleanup_upload(upload_id: str) -> None:

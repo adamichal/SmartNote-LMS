@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { createLecture, deleteLecture, getLectures } from "../api/client";
 import ConfirmDialog from "../components/ConfirmDialog";
+import CourseContextPanel from "../components/CourseContextPanel";
 import NewLectureForm from "../components/NewLectureForm";
 import StatusBadge from "../components/StatusBadge";
 
@@ -54,28 +55,40 @@ export default function LectureList() {
     }
   }
 
+  const completedCount = lectures.filter((lecture) => lecture.status === "completed").length;
+
   return (
     <div>
       <Link to="/" className="text-sm text-indigo-600 hover:text-indigo-800">
         ← חזרה לדשבורד
       </Link>
 
-      <div className="mt-4 mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">{decodedName}</h1>
-        <p className="mt-1 text-gray-500">רשימת הרצאות</p>
+      <div className="mt-4 mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">{decodedName}</h1>
+          <p className="mt-1 text-slate-500">
+            {lectures.length} הרצאות · {completedCount} מחברות מוכנות
+          </p>
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <CourseContextPanel courseName={decodedName} />
       </div>
 
       <div className="mb-8">
         <NewLectureForm onCreate={handleCreateLecture} />
       </div>
 
-      {loading && <p className="text-gray-500">טוען...</p>}
-      {error && <p className="text-red-600">{error}</p>}
+      {loading && <p className="text-slate-500">טוען...</p>}
+      {error && <p className="flash-message flash-message--error">{error}</p>}
 
       {!loading && !error && lectures.length === 0 && (
-        <p className="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center text-gray-500">
-          אין הרצאות בקורס זה. לחץ על &quot;הרצאה חדשה&quot; כדי להוסיף.
-        </p>
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
+          <p className="text-4xl">🎓</p>
+          <p className="mt-3 text-slate-600">אין הרצאות בקורס זה עדיין.</p>
+          <p className="mt-1 text-sm text-slate-500">העלה מדיה + PDF (או תמלול) כדי להתחיל.</p>
+        </div>
       )}
 
       {!loading && lectures.length > 0 && (
@@ -83,24 +96,41 @@ export default function LectureList() {
           {lectures.map((lecture) => (
             <li
               key={lecture.id}
-              className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-6 py-4 shadow-sm"
+              className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm transition hover:border-indigo-200"
             >
-              <Link
-                to={`/courses/${encodeURIComponent(decodedName)}/lectures/${encodeURIComponent(lecture.id)}/progress`}
-                className="flex flex-1 items-center justify-between pe-4 transition hover:text-indigo-700"
-              >
-                <span className="font-medium text-gray-900">
-                  הרצאה {lecture.number}: {lecture.topic}
-                </span>
-                <StatusBadge status={lecture.status} />
-              </Link>
-              <button
-                type="button"
-                onClick={() => setLectureToDelete(lecture)}
-                className="rounded-lg px-3 py-1 text-xs text-red-600 hover:bg-red-50"
-              >
-                מחק
-              </button>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-slate-900">
+                    הרצאה {lecture.number}: {lecture.topic}
+                  </p>
+                  <div className="mt-2">
+                    <StatusBadge status={lecture.status} />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {lecture.status === "completed" && (
+                    <Link
+                      to={`/courses/${encodeURIComponent(decodedName)}/lectures/${encodeURIComponent(lecture.id)}/notebook`}
+                      className="btn-primary"
+                    >
+                      פתח מחברת
+                    </Link>
+                  )}
+                  <Link
+                    to={`/courses/${encodeURIComponent(decodedName)}/lectures/${encodeURIComponent(lecture.id)}/progress`}
+                    className="btn-secondary"
+                  >
+                    {lecture.status === "completed" ? "סטטוס" : "המשך עיבוד"}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setLectureToDelete(lecture)}
+                    className="rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    מחק
+                  </button>
+                </div>
+              </div>
             </li>
           ))}
         </ul>

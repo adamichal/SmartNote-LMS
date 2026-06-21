@@ -48,6 +48,40 @@ export function getLectures(courseName) {
   return request(`/courses/${encodeURIComponent(courseName)}/lectures`);
 }
 
+export function getCourseMaterials(courseName) {
+  return request(`/courses/${encodeURIComponent(courseName)}/materials`);
+}
+
+export function addCourseMaterial(courseName, uploadId) {
+  return request(`/courses/${encodeURIComponent(courseName)}/materials`, {
+    method: "POST",
+    body: JSON.stringify({ upload_id: uploadId }),
+  });
+}
+
+export function deleteCourseMaterial(courseName, filename) {
+  return request(
+    `/courses/${encodeURIComponent(courseName)}/materials/${encodeURIComponent(filename)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function getCourseInfo(courseName) {
+  return request(`/courses/${encodeURIComponent(courseName)}/info`);
+}
+
+export function updateCourseInfo(courseName, content) {
+  return request(`/courses/${encodeURIComponent(courseName)}/info`, {
+    method: "PUT",
+    body: JSON.stringify({ content }),
+  });
+}
+
+export function getCourseContextPreview(courseName, lectureId) {
+  const params = lectureId ? `?lecture_id=${encodeURIComponent(lectureId)}` : "";
+  return request(`/courses/${encodeURIComponent(courseName)}/context-preview${params}`);
+}
+
 export function createLecture(
   courseName,
   number,

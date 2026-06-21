@@ -31,11 +31,11 @@ function stageState(stageKey, currentStage, progress, status, skippedStages = []
 }
 
 function StageIcon({ state }) {
-  if (state === "done") return <span className="text-green-600">✅</span>;
-  if (state === "skipped") return <span className="text-gray-500">⏭</span>;
-  if (state === "active") return <span className="text-blue-600">🔄</span>;
-  if (state === "error") return <span className="text-red-600">❌</span>;
-  return <span className="text-gray-400">⏸</span>;
+  if (state === "done") return <span className="text-green-600">✓</span>;
+  if (state === "skipped") return <span className="text-slate-400">⏭</span>;
+  if (state === "active") return <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-indigo-500" />;
+  if (state === "error") return <span className="text-red-600">✕</span>;
+  return <span className="text-slate-300">○</span>;
 }
 
 function stageLabel(state) {
@@ -44,6 +44,13 @@ function stageLabel(state) {
   if (state === "active") return "פעיל";
   if (state === "error") return "נכשל";
   return "ממתין";
+}
+
+function stageCardClass(state) {
+  if (state === "active") return "stage-card stage-card--active";
+  if (state === "done") return "stage-card stage-card--done";
+  if (state === "error") return "stage-card stage-card--error";
+  return "stage-card";
 }
 
 export default function ProcessingProgress() {
@@ -99,12 +106,21 @@ export default function ProcessingProgress() {
   }
 
   if (!status && !error) {
-    return <p className="text-gray-500">טוען...</p>;
+    return <p className="text-slate-500">טוען...</p>;
   }
 
   const progress = status?.progress_pct ?? 0;
   const jobStatus = status?.status ?? "pending";
   const skippedStages = status?.skipped_stages ?? [];
+
+  const statusTitle =
+    jobStatus === "processing"
+      ? "מעבד הרצאה"
+      : jobStatus === "completed"
+        ? "העיבוד הושלם"
+        : jobStatus === "error"
+          ? "שגיאה בעיבוד"
+          : "ממתין לעיבוד";
 
   return (
     <div>
@@ -116,22 +132,26 @@ export default function ProcessingProgress() {
       </Link>
 
       <div className="mt-4 mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {jobStatus === "processing" ? "⏳ מעבד" : jobStatus === "completed" ? "✅ הושלם" : jobStatus === "error" ? "❌ שגיאה" : "ממתין"}:{" "}
+        <p className="text-sm font-medium text-indigo-600">{statusTitle}</p>
+        <h1 className="mt-1 text-3xl font-bold text-slate-900">
           {status?.topic} — הרצאה {status?.number}
         </h1>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-6">
-          <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
+          <div className="mb-2 flex items-center justify-between text-sm text-slate-600">
             <span>התקדמות כללית</span>
-            <span>{progress}%</span>
+            <span className="font-semibold text-slate-900">{progress}%</span>
           </div>
-          <div className="h-3 overflow-hidden rounded-full bg-gray-200">
+          <div className="h-3 overflow-hidden rounded-full bg-slate-100">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
-                jobStatus === "error" ? "bg-red-500" : jobStatus === "completed" ? "bg-green-500" : "bg-indigo-600"
+                jobStatus === "error"
+                  ? "bg-red-500"
+                  : jobStatus === "completed"
+                    ? "bg-emerald-500"
+                    : "bg-indigo-600"
               }`}
               style={{ width: `${progress}%` }}
             />
@@ -150,35 +170,31 @@ export default function ProcessingProgress() {
             return (
               <li
                 key={stage.key}
-                className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-3"
+                className={`flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 ${stageCardClass(state)}`}
               >
                 <span className="flex items-center gap-3">
                   <StageIcon state={state} />
-                  <span className="font-medium text-gray-900">{stage.label}</span>
+                  <span className="font-medium text-slate-900">{stage.label}</span>
                 </span>
-                <span className="text-sm text-gray-500">{stageLabel(state)}</span>
+                <span className="text-sm text-slate-500">{stageLabel(state)}</span>
               </li>
             );
           })}
         </ul>
 
         {jobStatus === "error" && status?.error && (
-          <div className="mt-6 rounded-lg bg-red-50 p-4 text-sm text-red-700">
-            {status.error}
-          </div>
+          <div className="flash-message flash-message--error mt-6">{status.error}</div>
         )}
 
-        {error && (
-          <div className="mt-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>
-        )}
+        {error && <div className="flash-message flash-message--error mt-4">{error}</div>}
 
-        <div className="mt-6 flex gap-3">
+        <div className="mt-6 flex flex-wrap gap-3">
           {jobStatus === "completed" && status?.has_notebook && (
             <Link
               to={`/courses/${encodeURIComponent(decodedCourse)}/lectures/${encodeURIComponent(decodedLecture)}/notebook`}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              className="btn-primary"
             >
-              הצג מחברת
+              פתח מחברת
             </Link>
           )}
           {(jobStatus === "error" || (jobStatus === "completed" && !status?.has_notebook)) && (
@@ -186,7 +202,7 @@ export default function ProcessingProgress() {
               type="button"
               onClick={handleRetry}
               disabled={retrying}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="btn-primary disabled:opacity-50"
             >
               {retrying ? "מנסה שוב..." : jobStatus === "completed" ? "המשך עיבוד AI" : "נסה שוב"}
             </button>

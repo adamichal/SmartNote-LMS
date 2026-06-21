@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { exportNotebook, getNotebook, openNotebookPrintView, saveNotebook } from "../api/client";
+import NotebookToc from "../components/NotebookToc";
 import VisualNotebookEditor from "../components/VisualNotebookEditor";
+import { estimateReadingMinutes, extractHeadings } from "../utils/notebookMeta";
 import "katex/dist/katex.min.css";
 
 export default function NotebookEditor() {
@@ -18,6 +20,14 @@ export default function NotebookEditor() {
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
   const [isDirty, setIsDirty] = useState(false);
+  const [headings, setHeadings] = useState([]);
+  const [activeHeadingId, setActiveHeadingId] = useState("");
+  const [focusMode, setFocusMode] = useState(false);
+  const readingMinutes = useMemo(() => estimateReadingMinutes(content), [content]);
+
+  const refreshToc = useCallback((nextHeadings) => {
+    setHeadings(nextHeadings ?? []);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -26,6 +36,7 @@ export default function NotebookEditor() {
       try {
         const data = await getNotebook(decodedLecture);
         setContent(data.content);
+        setHeadings(extractHeadings(data.content));
         setIsDirty(false);
       } catch (err) {
         setLoadError(typeof err.message === "string" ? err.message : "טעינת המחברת נכשלה");
@@ -36,7 +47,7 @@ export default function NotebookEditor() {
     load();
   }, [decodedLecture]);
 
-  async function handleSave() {
+  const handleSave = useCallback(async () => {
     setSaving(true);
     setMessage("");
     setActionError("");
@@ -52,7 +63,45 @@ export default function NotebookEditor() {
     } finally {
       setSaving(false);
     }
-  }
+  }, [content, decodedLecture]);
+
+  useEffect(() => {
+    function onKeyDown(event) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (!saving) handleSave();
+      }
+      if (event.key === "Escape" && focusMode) {
+        setFocusMode(false);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleSave, saving, focusMode]);
+
+  useEffect(() => {
+    const root = editorRef.current?.getEditorElement?.();
+    if (!root || !headings.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top);
+        if (visible.length > 0) {
+          setActiveHeadingId(visible[0].target.id);
+        }
+      },
+      { root, rootMargin: "-15% 0px -75% 0px", threshold: 0 },
+    );
+
+    headings.forEach((heading) => {
+      const element = root.querySelector(`#${CSS.escape(heading.id)}`);
+      if (element) observer.observe(element);
+    });
+
+    return () => observer.disconnect();
+  }, [headings, loading, content]);
 
   async function handleExport(format) {
     if (isDirty) {
@@ -82,68 +131,95 @@ export default function NotebookEditor() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Link
-          to={`/courses/${encodeURIComponent(decodedCourse)}/lectures/${encodeURIComponent(decodedLecture)}/progress`}
-          className="text-sm text-indigo-600 hover:text-indigo-800"
-        >
-          ← חזרה למסך העיבוד
-        </Link>
+    <div className="flex h-[calc(100vh-5.5rem)] flex-col">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <Link
+            to={`/courses/${encodeURIComponent(decodedCourse)}`}
+            className="text-sm text-indigo-600 hover:text-indigo-800"
+          >
+            ← {decodedCourse}
+          </Link>
+          <h1 className="mt-2 text-2xl font-bold text-slate-900">מחברת לימוד</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {decodedLecture.replace(/_/g, " ")} · כ-{readingMinutes} דקות קריאה
+          </p>
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            onClick={() => setFocusMode((value) => !value)}
+            className={`btn-secondary ${focusMode ? "ring-2 ring-indigo-300" : ""}`}
+            title="הסתר סרגל כלים ותוכן עניינים לקריאה נוחה"
+          >
+            {focusMode ? "יציאה ממצב קריאה" : "מצב קריאה"}
+          </button>
+          <button
+            type="button"
             onClick={handleSave}
             disabled={saving || !isDirty}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="btn-primary"
           >
             {saving ? "שומר..." : "שמור"}
           </button>
           <button
             type="button"
-            onClick={() => handleExport("md")}
-            disabled={Boolean(exporting) || isDirty}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {exporting === "md" ? "מייצא..." : "ייצוא MD"}
-          </button>
-          <button
-            type="button"
             onClick={() => handleExport("pdf")}
             disabled={Boolean(exporting) || isDirty}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="btn-secondary"
           >
-            {exporting === "pdf" ? "פותח..." : "ייצוא PDF"}
+            ייצוא PDF
           </button>
           <button
             type="button"
             onClick={() => handleExport("docx")}
             disabled={Boolean(exporting) || isDirty}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="btn-secondary"
           >
-            {exporting === "docx" ? "מייצא..." : "ייצוא DOCX"}
+            {exporting === "docx" ? "מייצא..." : "DOCX"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExport("md")}
+            disabled={Boolean(exporting) || isDirty}
+            className="btn-secondary"
+          >
+            {exporting === "md" ? "מייצא..." : "MD"}
           </button>
         </div>
       </div>
 
-      <h1 className="mb-4 text-2xl font-bold text-gray-900">עורך מחברת</h1>
-
-      {loading && <p className="text-gray-500">טוען מחברת...</p>}
-      {loadError && <p className="mb-4 text-sm text-red-600">{loadError}</p>}
-      {actionError && <p className="mb-4 text-sm text-red-600">{actionError}</p>}
-      {message && <p className="mb-4 text-sm text-green-600">{message}</p>}
+      {loading && <p className="text-slate-500">טוען מחברת...</p>}
+      {loadError && <p className="flash-message flash-message--error mb-4">{loadError}</p>}
+      {actionError && <p className="flash-message flash-message--error mb-4">{actionError}</p>}
+      {message && <p className="flash-message flash-message--success mb-4">{message}</p>}
       {isDirty && !loading && (
-        <p className="mb-4 text-sm text-amber-600">יש שינויים שלא נשמרו</p>
+        <p className="flash-message flash-message--warning mb-4">
+          יש שינויים שלא נשמרו · Ctrl+S לשמירה
+        </p>
       )}
 
       {!loading && !loadError && (
-        <VisualNotebookEditor
-          ref={editorRef}
-          content={content}
-          lectureId={decodedLecture}
-          onDirtyChange={setIsDirty}
-        />
+        <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+          {!focusMode && (
+            <NotebookToc
+              headings={headings}
+              activeId={activeHeadingId}
+              onSelect={(headingId) => editorRef.current?.scrollToHeading(headingId)}
+            />
+          )}
+          <div className="notebook-canvas min-h-0 flex-1 overflow-auto rounded-xl p-2 sm:p-4">
+            <VisualNotebookEditor
+              ref={editorRef}
+              content={content}
+              lectureId={decodedLecture}
+              onDirtyChange={setIsDirty}
+              onHeadingsChange={refreshToc}
+              focusMode={focusMode}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

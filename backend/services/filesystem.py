@@ -88,6 +88,9 @@ def create_course(name: str) -> dict:
     if course_path.exists():
         raise HTTPException(status_code=409, detail="Course already exists")
     course_path.mkdir(parents=True, exist_ok=False)
+    from backend.services.course_context import ensure_course_materials_dir
+
+    ensure_course_materials_dir(course_path)
     return {"name": safe_name, "lecture_count": 0}
 
 

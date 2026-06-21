@@ -51,24 +51,29 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">הקורסים שלי</h1>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">הקורסים שלי</h1>
+          <p className="mt-1 text-slate-500">המר הרצאות למחברות לימוד מסודרות</p>
+        </div>
         <button
           type="button"
           onClick={() => setModalOpen(true)}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          className="btn-primary"
         >
           + קורס חדש
         </button>
       </div>
 
       {loading && <p className="text-gray-500">טוען...</p>}
-      {error && <p className="text-red-600">{error}</p>}
+      {error && <p className="flash-message flash-message--error">{error}</p>}
 
       {!loading && !error && courses.length === 0 && (
-        <p className="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center text-gray-500">
-          אין קורסים עדיין. לחץ על &quot;קורס חדש&quot; כדי להתחיל.
-        </p>
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
+          <p className="text-4xl">📓</p>
+          <p className="mt-3 text-slate-600">אין קורסים עדיין</p>
+          <p className="mt-1 text-sm text-slate-500">צור קורס חדש והעלה את ההרצאה הראשונה שלך.</p>
+        </div>
       )}
 
       {!loading && courses.length > 0 && (

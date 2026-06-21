@@ -30,7 +30,9 @@ class LectureResponse(BaseModel):
 
 class UploadInitRequest(BaseModel):
     filename: str = Field(min_length=1)
-    file_type: str = Field(pattern="^(media|pdf|transcript|pdf_extra)$")
+    file_type: str = Field(
+        pattern="^(media|pdf|transcript|pdf_extra|course_material)$"
+    )
     total_size: int = Field(gt=0)
 
 
@@ -85,3 +87,27 @@ class NotebookUpdate(BaseModel):
 
 class ExportRequest(BaseModel):
     format: str = Field(pattern="^(md|pdf|docx)$")
+
+
+class CourseMaterialResponse(BaseModel):
+    filename: str
+    size_bytes: int
+    extension: str
+
+
+class CourseMaterialAdd(BaseModel):
+    upload_id: str = Field(min_length=1)
+
+
+class CourseInfoUpdate(BaseModel):
+    content: str = ""
+
+
+class CourseInfoResponse(BaseModel):
+    content: str
+
+
+class CourseContextPreview(BaseModel):
+    content: str
+    char_count: int
+    max_chars: int

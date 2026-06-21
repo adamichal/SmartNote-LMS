@@ -22,9 +22,9 @@ PRINT_CSS = """
 }
 * { box-sizing: border-box; }
 body {
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: "Heebo", "Segoe UI", Arial, sans-serif;
   font-size: 14px;
-  line-height: 1.75;
+  line-height: 1.8;
   direction: rtl;
   color: #1f2937;
   max-width: 210mm;
@@ -32,12 +32,21 @@ body {
   padding: 24px;
   background: #fff;
 }
-h1 { font-size: 24px; margin: 1.2em 0 0.6em; font-weight: 700; }
-h2 { font-size: 20px; margin: 1em 0 0.5em; font-weight: 600; }
+h1 { font-size: 24px; margin: 1.2em 0 0.6em; font-weight: 700; color: #0f172a; border-bottom: 3px solid #4f46e5; padding-bottom: 0.5em; }
+h2 { font-size: 20px; margin: 1.2em 0 0.5em; font-weight: 600; border-right: 4px solid #a5b4fc; padding-right: 0.6em; }
 h3 { font-size: 16px; margin: 0.8em 0 0.4em; font-weight: 600; }
 p { margin: 0.65em 0; }
 ul, ol { margin: 0.65em 0; padding-right: 1.5em; }
 strong { font-weight: 700; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.5em 0; }
+blockquote {
+  margin: 1em 0;
+  padding: 0.75em 1em;
+  border-right: 4px solid #6366f1;
+  background: #eef2ff;
+  border-radius: 0.4em 0 0 0.4em;
+  color: #312e81;
+}
 code, pre {
   direction: ltr;
   unicode-bidi: embed;
@@ -65,6 +74,17 @@ th, td {
   border: 1px solid #d1d5db;
   padding: 0.4em 0.6em;
 }
+.notebook-callout {
+  margin: 1.2em 0;
+  padding: 0.9em 1em 1em;
+  border-radius: 0.6em;
+  border: 1px solid transparent;
+  page-break-inside: avoid;
+}
+.notebook-callout--summary { background: #f0fdf4; border-color: #bbf7d0; }
+.notebook-callout--exam { background: #fffbeb; border-color: #fde68a; }
+.notebook-callout--diff { background: #f8fafc; border-color: #cbd5e1; }
+.notebook-callout h2 { border-right: none; padding-right: 0; margin-top: 0; }
 .katex { direction: ltr; unicode-bidi: embed; font-size: 1.05em; }
 .print-toolbar {
   position: sticky;
@@ -115,6 +135,28 @@ document.addEventListener("DOMContentLoaded", function () {{
   }}
   renderMath();
   setTimeout(renderMath, 300);
+
+  document.querySelectorAll("h2").forEach(function (heading) {{
+    var text = heading.textContent || "";
+    var className = null;
+    if (text.indexOf("סיכום מהיר") >= 0) className = "notebook-callout notebook-callout--summary";
+    else if (text.indexOf("נקודות למבחן") >= 0) className = "notebook-callout notebook-callout--exam";
+    else if (text.indexOf("נושאים מהמצגת") >= 0 || text.indexOf("לא נדונו") >= 0) {{
+      className = "notebook-callout notebook-callout--diff";
+    }}
+    if (!className) return;
+
+    var wrapper = document.createElement("div");
+    wrapper.className = className;
+    heading.parentNode.insertBefore(wrapper, heading);
+    wrapper.appendChild(heading);
+    var sibling = wrapper.nextSibling;
+    while (sibling && !(sibling.nodeType === 1 && /^(H1|H2)$/.test(sibling.tagName))) {{
+      var next = sibling.nextSibling;
+      wrapper.appendChild(sibling);
+      sibling = next;
+    }}
+  }});
 
   var params = new URLSearchParams(window.location.search);
   if (params.get("autoprint") === "1") {{

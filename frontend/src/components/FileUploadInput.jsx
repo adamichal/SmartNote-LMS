@@ -6,6 +6,7 @@ const EXTENSIONS_BY_TYPE = {
   pdf: [".pdf"],
   pdf_extra: [".pdf"],
   transcript: [".txt"],
+  course_material: [".pdf", ".txt", ".md"],
 };
 
 function CheckIcon() {

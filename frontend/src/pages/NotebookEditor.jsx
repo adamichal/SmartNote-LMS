@@ -4,6 +4,7 @@ import { exportNotebook, getNotebook, openNotebookPrintView, saveNotebook } from
 import NotebookToc from "../components/NotebookToc";
 import VisualNotebookEditor from "../components/VisualNotebookEditor";
 import { estimateReadingMinutes, extractHeadings } from "../utils/notebookMeta";
+import { copyNotebookToWord, downloadNotebookDocx } from "../utils/wordExport";
 import "katex/dist/katex.min.css";
 
 export default function NotebookEditor() {
@@ -23,6 +24,7 @@ export default function NotebookEditor() {
   const [headings, setHeadings] = useState([]);
   const [activeHeadingId, setActiveHeadingId] = useState("");
   const [focusMode, setFocusMode] = useState(false);
+  const [copyingToWord, setCopyingToWord] = useState(false);
   const readingMinutes = useMemo(() => estimateReadingMinutes(content), [content]);
 
   const refreshToc = useCallback((nextHeadings) => {
@@ -103,8 +105,23 @@ export default function NotebookEditor() {
     return () => observer.disconnect();
   }, [headings, loading, content]);
 
+  async function handleCopyToWord() {
+    setCopyingToWord(true);
+    setMessage("");
+    setActionError("");
+    try {
+      const markdown = editorRef.current?.getMarkdown() ?? content;
+      await copyNotebookToWord(markdown, decodedLecture);
+      setMessage("הועתק ללוח — הדביקי ב-Word עם Ctrl+V (תמונות מוצגות כתיאור טקסט; לשקפים מלאים השתמשי ב'ייצוא PDF')");
+    } catch (err) {
+      setActionError(typeof err.message === "string" ? err.message : "העתקה ל-Word נכשלה");
+    } finally {
+      setCopyingToWord(false);
+    }
+  }
+
   async function handleExport(format) {
-    if (isDirty) {
+    if (format !== "docx" && isDirty) {
       setActionError("יש לשמור את המחברת לפני ייצוא");
       return;
     }
@@ -114,6 +131,23 @@ export default function NotebookEditor() {
       setActionError("");
       openNotebookPrintView(decodedLecture);
       setMessage('נפתח חלון הדפסה — בחר "שמור כ-PDF" / Microsoft Print to PDF');
+      return;
+    }
+
+    if (format === "docx") {
+      setExporting(format);
+      setMessage("");
+      setActionError("");
+      try {
+        const markdown = editorRef.current?.getMarkdown() ?? content;
+        const filename = `${decodedLecture.replace(/[^\w\u0590-\u05FF.-]+/g, "_")}_notebook.docx`;
+        await downloadNotebookDocx(markdown, filename, decodedLecture);
+        setMessage("קובץ Word הורד בהצלחה (עברית RTL + נוסחאות)");
+      } catch (err) {
+        setActionError(typeof err.message === "string" ? err.message : "ייצוא Word נכשל");
+      } finally {
+        setExporting("");
+      }
       return;
     }
 
@@ -165,6 +199,15 @@ export default function NotebookEditor() {
           </button>
           <button
             type="button"
+            onClick={handleCopyToWord}
+            disabled={copyingToWord || loading}
+            className="btn-secondary"
+            title="מעתיק עם נוסחאות MathML להדבקה ישירה ב-Word"
+          >
+            {copyingToWord ? "מעתיק..." : "העתק ל-Word"}
+          </button>
+          <button
+            type="button"
             onClick={() => handleExport("pdf")}
             disabled={Boolean(exporting) || isDirty}
             className="btn-secondary"
@@ -174,10 +217,11 @@ export default function NotebookEditor() {
           <button
             type="button"
             onClick={() => handleExport("docx")}
-            disabled={Boolean(exporting) || isDirty}
+            disabled={Boolean(exporting) || loading}
             className="btn-secondary"
+            title="ייצוא Word עם עברית RTL ונוסחאות — ללא Pandoc"
           >
-            {exporting === "docx" ? "מייצא..." : "DOCX"}
+            {exporting === "docx" ? "מייצא..." : "הורד Word"}
           </button>
           <button
             type="button"

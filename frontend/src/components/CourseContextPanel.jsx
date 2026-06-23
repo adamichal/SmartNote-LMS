@@ -66,12 +66,7 @@ export default function CourseContextPanel({ courseName }) {
 
   async function handleMaterialUploaded(uploadId) {
     setError("");
-    try {
-      await addCourseMaterial(courseName, uploadId);
-      await loadData();
-    } catch (err) {
-      setError(typeof err.message === "string" ? err.message : "הוספת החומר נכשלה");
-    }
+    await addCourseMaterial(courseName, uploadId);
   }
 
   async function handleConfirmDeleteMaterial() {
@@ -152,7 +147,7 @@ export default function CourseContextPanel({ courseName }) {
           <div>
             <p className="text-sm font-medium text-slate-700">חומרים משותפים (PDF, TXT, MD)</p>
             <p className="mt-1 text-xs text-slate-500">
-              סילבוס, מאמרים, מילון מונחים — ייכללו בהקשר שנשלח ל-Gemini.
+              סילבוס, מאמרים, מילון מונחים — ניתן לבחור מספר קבצים בבת אחת.
             </p>
             <div className="mt-3">
               <FileUploadInput
@@ -161,7 +156,9 @@ export default function CourseContextPanel({ courseName }) {
                 accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
                 fileType="course_material"
                 compact
+                multiple
                 onUploadComplete={handleMaterialUploaded}
+                onAllUploadsComplete={loadData}
               />
             </div>
 

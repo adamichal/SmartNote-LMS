@@ -33,7 +33,9 @@ export default function FileUploadInput({
   accept,
   fileType,
   compact = false,
+  multiple = false,
   onUploadComplete,
+  onAllUploadsComplete,
   onUploadReset,
 }) {
   const inputRef = useRef(null);
@@ -43,30 +45,57 @@ export default function FileUploadInput({
   const [error, setError] = useState("");
 
   async function handleFileChange(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const selected = multiple
+      ? [...(event.target.files || [])]
+      : event.target.files?.[0]
+        ? [event.target.files[0]]
+        : [];
+    if (!selected.length) return;
 
-    if (!validateExtension(file.name, fileType)) {
-      setError("סוג קובץ לא נתמך");
+    const invalid = selected.find((file) => !validateExtension(file.name, fileType));
+    if (invalid) {
+      setError(`סוג קובץ לא נתמך: ${invalid.name}`);
       setStatus("error");
       onUploadReset?.();
+      event.target.value = "";
       return;
     }
 
-    setFileName(file.name);
     setStatus("uploading");
     setProgress(0);
     setError("");
     onUploadReset?.();
 
     try {
-      const uploadId = await uploadFile(file, fileType, setProgress);
+      for (let index = 0; index < selected.length; index += 1) {
+        const file = selected[index];
+        setFileName(
+          selected.length > 1
+            ? `${index + 1}/${selected.length}: ${file.name}`
+            : file.name,
+        );
+
+        const uploadId = await uploadFile(file, fileType, (fileProgress) => {
+          const overall = Math.round(((index + fileProgress / 100) / selected.length) * 100);
+          setProgress(overall);
+        });
+
+        await onUploadComplete?.(uploadId);
+      }
+
       setStatus("complete");
-      onUploadComplete?.(uploadId);
+      setFileName(
+        selected.length > 1 ? `${selected.length} קבצים הועלו בהצלחה` : selected[0].name,
+      );
+      setProgress(100);
+      await onAllUploadsComplete?.();
     } catch (err) {
       setStatus("error");
       setError(typeof err.message === "string" ? err.message : "העלאה נכשלה");
       onUploadReset?.();
+      await onAllUploadsComplete?.();
+    } finally {
+      event.target.value = "";
     }
   }
 
@@ -82,13 +111,14 @@ export default function FileUploadInput({
           disabled={status === "uploading"}
           className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
-          {status === "uploading" ? "מעלה..." : "בחר קובץ"}
+          {status === "uploading" ? "מעלה..." : multiple ? "בחר קבצים" : "בחר קובץ"}
         </button>
         <input
           ref={inputRef}
           id={id}
           type="file"
           accept={accept}
+          multiple={multiple}
           onChange={handleFileChange}
           className="hidden"
         />

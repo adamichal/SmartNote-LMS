@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { exportNotebook, getNotebook, openNotebookPrintView, saveNotebook } from "../api/client";
+import {
+  exportNotebook,
+  generateExamSummary,
+  getExamSummary,
+  getNotebook,
+  saveNotebook,
+} from "../api/client";
+import MarkdownPreview from "../components/MarkdownPreview";
 import NotebookToc from "../components/NotebookToc";
 import VisualNotebookEditor from "../components/VisualNotebookEditor";
 import { estimateReadingMinutes, extractHeadings } from "../utils/notebookMeta";
-import { copyNotebookToWord, downloadNotebookDocx } from "../utils/wordExport";
+import { copyNotebookToWord, downloadNotebookDocx, getWordExportFont, setWordExportFont, WORD_FONTS } from "../utils/wordExport";
 import "katex/dist/katex.min.css";
 
 export default function NotebookEditor() {
@@ -13,8 +20,13 @@ export default function NotebookEditor() {
   const decodedLecture = decodeURIComponent(lectureId);
   const editorRef = useRef(null);
 
+  const [viewMode, setViewMode] = useState("notebook");
   const [content, setContent] = useState("");
+  const [summaryContent, setSummaryContent] = useState("");
+  const [summaryAvailable, setSummaryAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState("");
   const [message, setMessage] = useState("");
@@ -25,7 +37,27 @@ export default function NotebookEditor() {
   const [activeHeadingId, setActiveHeadingId] = useState("");
   const [focusMode, setFocusMode] = useState(false);
   const [copyingToWord, setCopyingToWord] = useState(false);
+  const [wordFontId, setWordFontId] = useState(() => getWordExportFont());
+  const [wordIncludeImages, setWordIncludeImages] = useState(true);
   const readingMinutes = useMemo(() => estimateReadingMinutes(content), [content]);
+  const summaryReadingMinutes = useMemo(
+    () => estimateReadingMinutes(summaryContent),
+    [summaryContent],
+  );
+
+  const loadSummary = useCallback(async () => {
+    setSummaryLoading(true);
+    try {
+      const data = await getExamSummary(decodedCourse, decodedLecture);
+      setSummaryContent(data.content);
+      setSummaryAvailable(true);
+    } catch {
+      setSummaryContent("");
+      setSummaryAvailable(false);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, [decodedCourse, decodedLecture]);
 
   const refreshToc = useCallback((nextHeadings) => {
     setHeadings(nextHeadings ?? []);
@@ -36,7 +68,7 @@ export default function NotebookEditor() {
       setLoading(true);
       setLoadError("");
       try {
-        const data = await getNotebook(decodedLecture);
+        const data = await getNotebook(decodedCourse, decodedLecture);
         setContent(data.content);
         setHeadings(extractHeadings(data.content));
         setIsDirty(false);
@@ -47,7 +79,49 @@ export default function NotebookEditor() {
       }
     }
     load();
-  }, [decodedLecture]);
+  }, [decodedCourse, decodedLecture]);
+
+  useEffect(() => {
+    if (viewMode === "summary") {
+      loadSummary();
+    }
+  }, [viewMode, loadSummary]);
+
+  const handleGenerateSummary = useCallback(async () => {
+    setGeneratingSummary(true);
+    setMessage("");
+    setActionError("");
+    try {
+      if (isDirty) {
+        const markdown = editorRef.current?.getMarkdown() ?? content;
+        await saveNotebook(decodedCourse, decodedLecture, markdown);
+        setContent(markdown);
+        editorRef.current?.markSaved();
+        setIsDirty(false);
+      }
+      const data = await generateExamSummary(decodedCourse, decodedLecture);
+      setSummaryContent(data.content);
+      setSummaryAvailable(true);
+      setMessage("סיכום למבחן נוצר בהצלחה");
+    } catch (err) {
+      setActionError(typeof err.message === "string" ? err.message : "יצירת סיכום נכשלה");
+    } finally {
+      setGeneratingSummary(false);
+    }
+  }, [content, decodedCourse, decodedLecture, isDirty]);
+
+  function handleDownloadSummaryMd() {
+    if (!summaryContent) return;
+    const blob = new Blob([summaryContent], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${decodedLecture.replace(/[^\w\u0590-\u05FF.-]+/g, "_")}_exam_summary.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -55,7 +129,7 @@ export default function NotebookEditor() {
     setActionError("");
     try {
       const markdown = editorRef.current?.getMarkdown() ?? content;
-      await saveNotebook(decodedLecture, markdown);
+      await saveNotebook(decodedCourse, decodedLecture, markdown);
       setContent(markdown);
       editorRef.current?.markSaved();
       setIsDirty(false);
@@ -65,7 +139,7 @@ export default function NotebookEditor() {
     } finally {
       setSaving(false);
     }
-  }, [content, decodedLecture]);
+  }, [content, decodedCourse, decodedLecture]);
 
   useEffect(() => {
     function onKeyDown(event) {
@@ -111,13 +185,26 @@ export default function NotebookEditor() {
     setActionError("");
     try {
       const markdown = editorRef.current?.getMarkdown() ?? content;
-      await copyNotebookToWord(markdown, decodedLecture);
-      setMessage("הועתק ללוח — הדביקי ב-Word עם Ctrl+V (תמונות מוצגות כתיאור טקסט; לשקפים מלאים השתמשי ב'ייצוא PDF')");
+      await copyNotebookToWord(markdown, decodedCourse, decodedLecture, {
+        fontId: wordFontId,
+        includeImages: wordIncludeImages,
+      });
+      setMessage(
+        wordIncludeImages
+          ? "הועתק ללוח עם תמונות — הדביקי ב-Word עם Ctrl+V"
+          : "הועתק ללוח — הדביקי ב-Word עם Ctrl+V (תמונות מוצגות כתיאור טקסט)",
+      );
     } catch (err) {
       setActionError(typeof err.message === "string" ? err.message : "העתקה ל-Word נכשלה");
     } finally {
       setCopyingToWord(false);
     }
+  }
+
+  function handleWordFontChange(event) {
+    const nextFont = event.target.value;
+    setWordFontId(nextFont);
+    setWordExportFont(nextFont);
   }
 
   async function handleExport(format) {
@@ -127,10 +214,17 @@ export default function NotebookEditor() {
     }
 
     if (format === "pdf") {
+      setExporting(format);
       setMessage("");
       setActionError("");
-      openNotebookPrintView(decodedLecture);
-      setMessage('נפתח חלון הדפסה — בחר "שמור כ-PDF" / Microsoft Print to PDF');
+      try {
+        await exportNotebook(decodedCourse, decodedLecture, format);
+        setMessage("קובץ PDF הורד בהצלחה");
+      } catch (err) {
+        setActionError(typeof err.message === "string" ? err.message : "ייצוא PDF נכשל");
+      } finally {
+        setExporting("");
+      }
       return;
     }
 
@@ -141,8 +235,15 @@ export default function NotebookEditor() {
       try {
         const markdown = editorRef.current?.getMarkdown() ?? content;
         const filename = `${decodedLecture.replace(/[^\w\u0590-\u05FF.-]+/g, "_")}_notebook.docx`;
-        await downloadNotebookDocx(markdown, filename, decodedLecture);
-        setMessage("קובץ Word הורד בהצלחה (עברית RTL + נוסחאות)");
+        await downloadNotebookDocx(markdown, filename, decodedCourse, decodedLecture, {
+          fontId: wordFontId,
+          includeImages: wordIncludeImages,
+        });
+        setMessage(
+          wordIncludeImages
+            ? "קובץ Word הורד בהצלחה. אם Word לא נפתח — ודאי שהקובץ לא בתוך ZIP ושיש מספיק מקום בדיסק."
+            : "קובץ Word הורד בהצלחה (בלי תמונות — קובץ קל יותר לפתיחה)",
+        );
       } catch (err) {
         setActionError(typeof err.message === "string" ? err.message : "ייצוא Word נכשל");
       } finally {
@@ -155,7 +256,7 @@ export default function NotebookEditor() {
     setMessage("");
     setActionError("");
     try {
-      await exportNotebook(decodedLecture, format);
+      await exportNotebook(decodedCourse, decodedLecture, format);
       setMessage(`הקובץ יוצא בפורמט ${format.toUpperCase()}`);
     } catch (err) {
       setActionError(typeof err.message === "string" ? err.message : "ייצוא נכשל");
@@ -167,20 +268,72 @@ export default function NotebookEditor() {
   return (
     <div className="flex h-[calc(100vh-5.5rem)] flex-col">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="notebook-editor-header">
           <Link
             to={`/courses/${encodeURIComponent(decodedCourse)}`}
-            className="text-sm text-indigo-600 hover:text-indigo-800"
+            className="notebook-editor-header__back"
           >
             ← {decodedCourse}
           </Link>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">מחברת לימוד</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {decodedLecture.replace(/_/g, " ")} · כ-{readingMinutes} דקות קריאה
+          <h1 className="notebook-editor-header__title">
+            {viewMode === "notebook" ? "מחברת לימוד" : "סיכום למבחן"}
+          </h1>
+          <p className="notebook-editor-header__meta">
+            {decodedLecture.replace(/_/g, " ")} · כ-
+            {viewMode === "notebook" ? readingMinutes : summaryReadingMinutes} דקות קריאה
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-slate-300 bg-white p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode("notebook")}
+              className={`rounded-md px-3 py-1.5 text-sm ${
+                viewMode === "notebook"
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              מחברת מלאה
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("summary")}
+              className={`rounded-md px-3 py-1.5 text-sm ${
+                viewMode === "summary"
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              סיכום למבחן
+            </button>
+          </div>
+          {viewMode === "notebook" && (
+            <>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <span>פונט Word:</span>
+            <select
+              value={wordFontId}
+              onChange={handleWordFontChange}
+              className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
+              title="פונט לייצוא והעתקה ל-Word"
+            >
+              {Object.values(WORD_FONTS).map((font) => (
+                <option key={font.id} value={font.id}>
+                  {font.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={wordIncludeImages}
+              onChange={(event) => setWordIncludeImages(event.target.checked)}
+            />
+            <span>כלול תמונות ב-Word</span>
+          </label>
           <button
             type="button"
             onClick={() => setFocusMode((value) => !value)}
@@ -212,7 +365,7 @@ export default function NotebookEditor() {
             disabled={Boolean(exporting) || isDirty}
             className="btn-secondary"
           >
-            ייצוא PDF
+            {exporting === "pdf" ? "מייצא..." : "ייצוא PDF"}
           </button>
           <button
             type="button"
@@ -231,10 +384,46 @@ export default function NotebookEditor() {
           >
             {exporting === "md" ? "מייצא..." : "MD"}
           </button>
+            </>
+          )}
+          {viewMode === "summary" && (
+            <>
+              <button
+                type="button"
+                onClick={handleGenerateSummary}
+                disabled={generatingSummary || loading}
+                className="btn-primary"
+              >
+                {generatingSummary ? "מייצר..." : summaryAvailable ? "רענן סיכום" : "צור סיכום"}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadSummaryMd}
+                disabled={!summaryContent}
+                className="btn-secondary"
+              >
+                הורד MD
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {loading && <p className="text-slate-500">טוען מחברת...</p>}
+      {loading && (
+        <div className="space-y-4 p-2" aria-busy="true" aria-label="טוען מחברת">
+          <div className="h-8 w-1/2 animate-pulse rounded-lg bg-slate-200" />
+          <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
+          <div className="h-4 w-5/6 animate-pulse rounded bg-slate-100" />
+          <div className="h-4 w-4/5 animate-pulse rounded bg-slate-100" />
+          <div className="mt-6 h-6 w-1/3 animate-pulse rounded-lg bg-slate-200" />
+          <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
+          <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
+          <div className="mt-6 h-6 w-2/5 animate-pulse rounded-lg bg-slate-200" />
+          <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
+          <div className="h-4 w-5/6 animate-pulse rounded bg-slate-100" />
+          <div className="h-4 w-2/3 animate-pulse rounded bg-slate-100" />
+        </div>
+      )}
       {loadError && <p className="flash-message flash-message--error mb-4">{loadError}</p>}
       {actionError && <p className="flash-message flash-message--error mb-4">{actionError}</p>}
       {message && <p className="flash-message flash-message--success mb-4">{message}</p>}
@@ -244,7 +433,7 @@ export default function NotebookEditor() {
         </p>
       )}
 
-      {!loading && !loadError && (
+      {!loading && !loadError && viewMode === "notebook" && (
         <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
           {!focusMode && (
             <NotebookToc
@@ -257,12 +446,47 @@ export default function NotebookEditor() {
             <VisualNotebookEditor
               ref={editorRef}
               content={content}
+              courseName={decodedCourse}
               lectureId={decodedLecture}
               onDirtyChange={setIsDirty}
               onHeadingsChange={refreshToc}
               focusMode={focusMode}
             />
           </div>
+        </div>
+      )}
+
+      {!loading && !loadError && viewMode === "summary" && (
+        <div className="notebook-canvas min-h-0 flex-1 overflow-auto rounded-xl">
+          {summaryLoading && (
+            <div className="space-y-4 p-6" aria-busy="true">
+              <div className="h-6 w-1/3 animate-pulse rounded-lg bg-slate-200" />
+              <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
+              <div className="h-4 w-5/6 animate-pulse rounded bg-slate-100" />
+            </div>
+          )}
+          {!summaryLoading && !summaryAvailable && (
+            <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
+              <p className="text-slate-600">
+                עדיין אין סיכום למבחן להרצאה זו. הסיכום נוצר מהמחברת המלאה.
+              </p>
+              <button
+                type="button"
+                onClick={handleGenerateSummary}
+                disabled={generatingSummary}
+                className="btn-primary"
+              >
+                {generatingSummary ? "מייצר סיכום..." : "צור סיכום למבחן"}
+              </button>
+            </div>
+          )}
+          {!summaryLoading && summaryAvailable && (
+            <MarkdownPreview
+              content={summaryContent}
+              courseName={decodedCourse}
+              lectureId={decodedLecture}
+            />
+          )}
         </div>
       )}
     </div>

@@ -1,8 +1,10 @@
+import { DIAGRAM_TEMPLATES } from "../utils/diagramTemplates";
+
 function exec(command, value = null) {
   document.execCommand(command, false, value);
 }
 
-export default function EditorToolbar({ editorRef }) {
+export default function EditorToolbar({ editorRef, onInsertDiagram }) {
   function focusEditor() {
     editorRef.current?.focus();
   }
@@ -15,6 +17,14 @@ export default function EditorToolbar({ editorRef }) {
   function setBlock(tag) {
     focusEditor();
     exec("formatBlock", tag);
+  }
+
+  function handleDiagramInsert(event) {
+    const templateId = event.target.value;
+    event.target.value = "";
+    if (!templateId) return;
+    const template = DIAGRAM_TEMPLATES.find((item) => item.id === templateId);
+    if (template) onInsertDiagram?.(template.source);
   }
 
   return (
@@ -58,6 +68,24 @@ export default function EditorToolbar({ editorRef }) {
       <button type="button" onClick={() => run("formatBlock", "blockquote")} className="toolbar-btn" title="הדגשה / הגדרה">
         ❝
       </button>
+      <span className="mx-1 h-6 w-px bg-slate-300" />
+      <label className="sr-only" htmlFor="diagram-template-select">
+        הוסף תרשים
+      </label>
+      <select
+        id="diagram-template-select"
+        className="diagram-template-select"
+        defaultValue=""
+        onChange={handleDiagramInsert}
+        title="הוסף תבנית תרשים Mermaid"
+      >
+        <option value="">+ תרשים</option>
+        {DIAGRAM_TEMPLATES.map((template) => (
+          <option key={template.id} value={template.id}>
+            {template.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

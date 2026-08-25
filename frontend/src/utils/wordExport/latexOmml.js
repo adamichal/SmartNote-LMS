@@ -159,7 +159,8 @@ function parseLatexTokens(tokens, position) {
         position += 1;
         const group = parseGroup(tokens, position);
         const plain = group.xml.replace(/<[^>]+>/g, "");
-        xml += `<m:r><m:rPr><m:sty m:val="p"/></m:rPr><m:t>${escapeXml(plain)}</m:t></m:r>`;
+        const textValue = /[\u0590-\u05FF]/.test(plain) ? `\u200F${plain}\u200F` : plain;
+        xml += `<m:r><m:rPr><m:sty m:val="p"/></m:rPr><m:t>${escapeXml(textValue)}</m:t></m:r>`;
         position = group.pos + 1;
         continue;
       }
@@ -179,7 +180,9 @@ function parseLatexTokens(tokens, position) {
     }
 
     if (token.type === "char") {
-      let charXml = `<m:r><m:t>${escapeXml(token.value)}</m:t></m:r>`;
+      const isHebrew = /[\u0590-\u05FF]/.test(token.value);
+      const textValue = isHebrew ? `\u200F${token.value}\u200F` : token.value;
+      let charXml = `<m:r><m:t>${escapeXml(textValue)}</m:t></m:r>`;
       position += 1;
       while (
         position < tokens.length &&

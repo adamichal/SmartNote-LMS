@@ -15,10 +15,27 @@ class LectureCreate(BaseModel):
     topic: str = Field(min_length=1, max_length=200)
     media_upload_id: str | None = None
     pdf_upload_id: str | None = None
+    pdf_upload_ids: list[str] = Field(default_factory=list)
     transcript_upload_id: str | None = None
+    transcript_upload_ids: list[str] = Field(default_factory=list)
     pdf_extra_upload_ids: list[str] = Field(default_factory=list)
+    extra_material_upload_ids: list[str] = Field(default_factory=list)
+    transcript_text: str | None = None
     media_path: str | None = None
     pdf_path: str | None = None
+
+
+class LectureSourceItem(BaseModel):
+    category: str
+    filename: str
+    original_name: str
+    extension: str
+    size_bytes: int
+
+
+class LectureSourcesResponse(BaseModel):
+    items: list[LectureSourceItem]
+    summary: dict[str, int] = Field(default_factory=dict)
 
 
 class LectureResponse(BaseModel):
@@ -28,10 +45,15 @@ class LectureResponse(BaseModel):
     status: str
 
 
+class BulkAiRetryResponse(BaseModel):
+    course_name: str
+    queued: int
+
+
 class UploadInitRequest(BaseModel):
     filename: str = Field(min_length=1)
     file_type: str = Field(
-        pattern="^(media|pdf|transcript|pdf_extra|course_material)$"
+        pattern="^(media|pdf|transcript|pdf_extra|lecture_extra|course_material)$"
     )
     total_size: int = Field(gt=0)
 

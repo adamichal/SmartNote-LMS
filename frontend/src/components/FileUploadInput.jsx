@@ -4,7 +4,8 @@ import { uploadFile } from "../api/client";
 const EXTENSIONS_BY_TYPE = {
   media: [".mp4", ".mp3"],
   pdf: [".pdf"],
-  pdf_extra: [".pdf"],
+  pdf_extra: [".pdf", ".txt", ".md"],
+  lecture_extra: [".pdf", ".txt", ".md"],
   transcript: [".txt"],
   course_material: [".pdf", ".txt", ".md"],
 };

@@ -26,12 +26,10 @@ export default function ImageLightbox({ src, alt, onClose }) {
       <button type="button" className="image-lightbox__close" onClick={onClose} aria-label="סגור">
         ✕
       </button>
-      <img
-        src={src}
-        alt={alt || ""}
-        className="image-lightbox__image"
-        onClick={(event) => event.stopPropagation()}
-      />
+      <div className="image-lightbox__content" onClick={(event) => event.stopPropagation()}>
+        <img src={src} alt={alt || ""} className="image-lightbox__image" />
+        {alt && <p className="image-lightbox__caption">{alt}</p>}
+      </div>
     </div>
   );
 }

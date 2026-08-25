@@ -1,100 +1,39 @@
 import { useState } from "react";
 import FileUploadInput from "./FileUploadInput";
-
-function ExtraPdfUploads({ uploads, onChange }) {
-  function addSlot() {
-    onChange([...uploads, null]);
-  }
-
-  function setUploadId(index, uploadId) {
-    const next = [...uploads];
-    next[index] = uploadId;
-    onChange(next);
-  }
-
-  function resetUpload(index) {
-    const next = [...uploads];
-    next[index] = null;
-    onChange(next);
-  }
-
-  function removeSlot(index) {
-    onChange(uploads.filter((_, slotIndex) => slotIndex !== index));
-  }
-
-  return (
-    <div className="sm:col-span-2">
-      <div className="flex items-center justify-between gap-3">
-        <span className="block text-sm font-medium text-gray-700">
-          📚 חומרי עזר נוספים (PDF, אופציונלי)
-        </span>
-        <button
-          type="button"
-          onClick={addSlot}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-        >
-          + הוסף PDF
-        </button>
-      </div>
-      {uploads.length === 0 && (
-        <p className="mt-2 text-xs text-gray-500">
-          ניתן להוסיף מקורות PDF נוספים שיסייעו ל-AI ביצירת הסיכום.
-        </p>
-      )}
-      <div className="mt-3 space-y-3">
-        {uploads.map((uploadId, index) => (
-          <div key={index} className="rounded-lg border border-gray-100 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-600">PDF #{index + 1}</span>
-              <button
-                type="button"
-                onClick={() => removeSlot(index)}
-                className="text-xs text-red-600 hover:text-red-800"
-              >
-                הסר
-              </button>
-            </div>
-            <FileUploadInput
-              id={`extra-pdf-${index}`}
-              label=""
-              accept=".pdf,application/pdf"
-              fileType="pdf_extra"
-              compact
-              onUploadComplete={(id) => setUploadId(index, id)}
-              onUploadReset={() => resetUpload(index)}
-            />
-            {uploadId && (
-              <p className="mt-1 text-xs text-green-600">הקובץ הועלה בהצלחה</p>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+import MultiUploadSlots from "./MultiUploadSlots";
+import PresentationBulkUpload from "./PresentationBulkUpload";
 
 export default function NewLectureForm({ onCreate }) {
   const [number, setNumber] = useState("");
   const [topic, setTopic] = useState("");
   const [mediaUploadId, setMediaUploadId] = useState(null);
-  const [pdfUploadId, setPdfUploadId] = useState(null);
-  const [transcriptUploadId, setTranscriptUploadId] = useState(null);
-  const [extraPdfUploads, setExtraPdfUploads] = useState([]);
+  const [presentationUploadIds, setPresentationUploadIds] = useState([]);
+  const [transcriptUploads, setTranscriptUploads] = useState([]);
+  const [transcriptText, setTranscriptText] = useState("");
+  const [extraMaterialUploads, setExtraMaterialUploads] = useState([]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const hasMediaOrTranscript = Boolean(mediaUploadId || transcriptUploadId);
-  const canSubmit = Boolean(pdfUploadId && hasMediaOrTranscript);
-  const extraPdfUploadIds = extraPdfUploads.filter(Boolean);
+  const transcriptUploadIds = transcriptUploads.filter(Boolean);
+  const extraMaterialUploadIds = extraMaterialUploads.filter(Boolean);
+
+  const hasSource = Boolean(
+    mediaUploadId
+      || presentationUploadIds.length
+      || transcriptUploadIds.length
+      || transcriptText.trim(),
+  );
+  const canSubmit = hasSource;
 
   function resetForm() {
     setNumber("");
     setTopic("");
     setMediaUploadId(null);
-    setPdfUploadId(null);
-    setTranscriptUploadId(null);
-    setExtraPdfUploads([]);
+    setPresentationUploadIds([]);
+    setTranscriptUploads([]);
+    setTranscriptText("");
+    setExtraMaterialUploads([]);
     setError("");
   }
 
@@ -109,8 +48,8 @@ export default function NewLectureForm({ onCreate }) {
       setError("יש להזין נושא");
       return;
     }
-    if (!canSubmit) {
-      setError("יש להעלות מצגת PDF, וגם מדיה או קובץ תמלול");
+    if (!hasSource) {
+      setError("יש להעלות לפחות מקור אחד: מדיה, מצגת, תמלול (קובץ או הדבקה)");
       return;
     }
 
@@ -119,9 +58,10 @@ export default function NewLectureForm({ onCreate }) {
     try {
       await onCreate(parsedNumber, topic.trim(), {
         mediaUploadId,
-        pdfUploadId,
-        transcriptUploadId,
-        pdfExtraUploadIds: extraPdfUploadIds,
+        pdfUploadIds: presentationUploadIds,
+        transcriptUploadIds,
+        transcriptText: transcriptText.trim() || null,
+        extraMaterialUploadIds,
       });
       resetForm();
       setExpanded(false);
@@ -147,6 +87,9 @@ export default function NewLectureForm({ onCreate }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-gray-900">הרצאה חדשה</h2>
+      <p className="mt-1 text-sm text-gray-500">
+        ניתן להעלות מצגות, תמלול ומדיה בכל שילוב — לפחות מקור אחד נדרש.
+      </p>
       <form onSubmit={handleSubmit} className="mt-4 grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="lecture-number" className="block text-sm font-medium text-gray-700">
@@ -180,32 +123,59 @@ export default function NewLectureForm({ onCreate }) {
 
         <FileUploadInput
           id="media-file"
-          label={`🎬 מדיה (MP4/MP3)${transcriptUploadId ? " — אופציונלי" : ""}`}
+          label="מדיה (MP4/MP3) — אופציונלי"
           accept=".mp4,.mp3,video/mp4,audio/mpeg,audio/mp3"
           fileType="media"
           onUploadComplete={setMediaUploadId}
           onUploadReset={() => setMediaUploadId(null)}
         />
 
-        <FileUploadInput
-          id="transcript-file"
-          label={`📝 תמלול (TXT)${mediaUploadId ? " — אופציונלי, מדלג על Whisper" : ""}`}
-          accept=".txt,text/plain"
+        <MultiUploadSlots
+          title="תמלולים (TXT) — אופציונלי"
+          hint="אם הועלה תמלול, Whisper לא ירוץ. ניתן להעלות כמה קבצים."
+          addLabel="+ הוסף תמלול"
+          slotLabel={(index) => `תמלול #${index + 1}`}
+          uploads={transcriptUploads}
+          onChange={setTranscriptUploads}
           fileType="transcript"
-          onUploadComplete={setTranscriptUploadId}
-          onUploadReset={() => setTranscriptUploadId(null)}
+          accept=".txt,text/plain"
+          emptyHint="הוסף תמלול אם אין מדיה, או כדי לדלג על תמלול אוטומטי."
         />
 
-        <FileUploadInput
-          id="pdf-file"
-          label="📄 מצגת (PDF)"
-          accept=".pdf,application/pdf"
-          fileType="pdf"
-          onUploadComplete={setPdfUploadId}
-          onUploadReset={() => setPdfUploadId(null)}
+        <div className="sm:col-span-2">
+          <label htmlFor="transcript-text" className="block text-sm font-medium text-gray-700">
+            או הדבק תמלול — אופציונלי
+          </label>
+          <p className="mt-1 text-xs text-gray-500">
+            ניתן להדביק טקסט ישירות במקום להעלות קובץ. אם הועבר תמלול, Whisper לא ירוץ.
+          </p>
+          <textarea
+            id="transcript-text"
+            value={transcriptText}
+            onChange={(e) => setTranscriptText(e.target.value)}
+            rows={6}
+            dir="auto"
+            className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 font-sans text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            placeholder="הדבק כאן את התמלול..."
+          />
+        </div>
+
+        <PresentationBulkUpload
+          uploadIds={presentationUploadIds}
+          onChange={setPresentationUploadIds}
         />
 
-        <ExtraPdfUploads uploads={extraPdfUploads} onChange={setExtraPdfUploads} />
+        <MultiUploadSlots
+          title="חומרים נוספים (PDF / TXT / MD) — אופציונלי"
+          hint="מקורות עזר (סילבוס, מאמרים, הערות) — לא מצגות ההרצאה עצמה."
+          addLabel="+ הוסף חומר"
+          slotLabel={(index) => `חומר #${index + 1}`}
+          uploads={extraMaterialUploads}
+          onChange={setExtraMaterialUploads}
+          fileType="lecture_extra"
+          accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
+          emptyHint="חומרי עזר שיסייעו ל-AI בנוסף למצגות."
+        />
 
         {error && (
           <p className="text-sm text-red-600 sm:col-span-2">{error}</p>

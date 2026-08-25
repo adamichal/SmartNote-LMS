@@ -1,6 +1,10 @@
 const API_BASE = "/api";
 const CHUNK_SIZE = 10 * 1024 * 1024;
 
+function lecturePath(courseName, lectureId) {
+  return `/courses/${encodeURIComponent(courseName)}/lectures/${encodeURIComponent(lectureId)}`;
+}
+
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: { "Content-Type": "application/json", ...options.headers },
@@ -38,14 +42,17 @@ export function deleteCourse(courseName) {
 }
 
 export function deleteLecture(courseName, lectureId) {
-  return request(
-    `/courses/${encodeURIComponent(courseName)}/lectures/${encodeURIComponent(lectureId)}`,
-    { method: "DELETE" },
-  );
+  return request(`${lecturePath(courseName, lectureId)}`, { method: "DELETE" });
 }
 
 export function getLectures(courseName) {
   return request(`/courses/${encodeURIComponent(courseName)}/lectures`);
+}
+
+export function retryAllLecturesAi(courseName) {
+  return request(`/courses/${encodeURIComponent(courseName)}/lectures/retry-ai-all`, {
+    method: "POST",
+  });
 }
 
 export function getCourseMaterials(courseName) {
@@ -89,51 +96,89 @@ export function createLecture(
   {
     mediaUploadId,
     pdfUploadId,
+    pdfUploadIds = [],
     transcriptUploadId,
+    transcriptUploadIds = [],
+    transcriptText = null,
     pdfExtraUploadIds = [],
+    extraMaterialUploadIds = [],
   } = {},
 ) {
+  const presentations = [...pdfUploadIds];
+  if (pdfUploadId && !presentations.includes(pdfUploadId)) {
+    presentations.unshift(pdfUploadId);
+  }
+  const transcripts = [...transcriptUploadIds];
+  if (transcriptUploadId && !transcripts.includes(transcriptUploadId)) {
+    transcripts.unshift(transcriptUploadId);
+  }
+  const extras = [...extraMaterialUploadIds, ...pdfExtraUploadIds];
+
   return request(`/courses/${encodeURIComponent(courseName)}/lectures`, {
     method: "POST",
     body: JSON.stringify({
       number,
       topic,
       media_upload_id: mediaUploadId || null,
-      pdf_upload_id: pdfUploadId || null,
-      transcript_upload_id: transcriptUploadId || null,
-      pdf_extra_upload_ids: pdfExtraUploadIds,
+      pdf_upload_id: null,
+      pdf_upload_ids: presentations,
+      transcript_upload_id: null,
+      transcript_upload_ids: transcripts,
+      transcript_text: transcriptText || null,
+      pdf_extra_upload_ids: [],
+      extra_material_upload_ids: extras,
     }),
   });
 }
 
-export function getLectureStatus(lectureId) {
-  return request(`/lectures/${encodeURIComponent(lectureId)}/status`);
+export function getLectureSources(courseName, lectureId) {
+  return request(`${lecturePath(courseName, lectureId)}/sources`);
 }
 
-export function retryLecture(lectureId) {
-  return request(`/lectures/${encodeURIComponent(lectureId)}/retry`, {
+export function getLectureStatus(courseName, lectureId) {
+  return request(`${lecturePath(courseName, lectureId)}/status`);
+}
+
+export function retryLecture(courseName, lectureId) {
+  return request(`${lecturePath(courseName, lectureId)}/retry`, {
     method: "POST",
   });
 }
 
-export function getNotebook(lectureId) {
-  return request(`/lectures/${encodeURIComponent(lectureId)}/notebook`);
+export function retryLectureAiOnly(courseName, lectureId) {
+  return request(`${lecturePath(courseName, lectureId)}/retry-ai`, {
+    method: "POST",
+  });
 }
 
-export function saveNotebook(lectureId, content) {
-  return request(`/lectures/${encodeURIComponent(lectureId)}/notebook`, {
+export function getNotebook(courseName, lectureId) {
+  return request(`${lecturePath(courseName, lectureId)}/notebook`);
+}
+
+export function saveNotebook(courseName, lectureId, content) {
+  return request(`${lecturePath(courseName, lectureId)}/notebook`, {
     method: "PUT",
     body: JSON.stringify({ content }),
   });
 }
 
-export function openNotebookPrintView(lectureId) {
-  const url = `${API_BASE}/lectures/${encodeURIComponent(lectureId)}/export/print?autoprint=1`;
+export function getExamSummary(courseName, lectureId) {
+  return request(`${lecturePath(courseName, lectureId)}/exam-summary`);
+}
+
+export function generateExamSummary(courseName, lectureId) {
+  return request(`${lecturePath(courseName, lectureId)}/exam-summary/generate`, {
+    method: "POST",
+  });
+}
+
+export function openNotebookPrintView(courseName, lectureId) {
+  const url = `${API_BASE}${lecturePath(courseName, lectureId)}/export/print?autoprint=1`;
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-export async function exportNotebook(lectureId, format) {
-  const response = await fetch(`${API_BASE}/lectures/${encodeURIComponent(lectureId)}/export`, {
+export async function exportNotebook(courseName, lectureId, format) {
+  const response = await fetch(`${API_BASE}${lecturePath(courseName, lectureId)}/export`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ format }),
@@ -161,6 +206,47 @@ export async function exportNotebook(lectureId, format) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+export async function downloadCourseExport(courseName, endpoint, fallbackFilename) {
+  const response = await fetch(
+    `${API_BASE}/courses/${encodeURIComponent(courseName)}/export/${endpoint}`,
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    const detail = error.detail;
+    const message = Array.isArray(detail)
+      ? detail.map((item) => item.msg).join(", ")
+      : detail || "Export failed";
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const filenameMatch = disposition.match(/filename="?([^";\n]+)"?/);
+  const filename = filenameMatch?.[1] || fallbackFilename;
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function exportCourseNotebooksZip(courseName) {
+  return downloadCourseExport(courseName, "notebooks.zip", `${courseName}_notebooks.zip`);
+}
+
+export async function exportCourseNotebooksPdf(courseName) {
+  return downloadCourseExport(courseName, "notebooks.pdf", `${courseName}_notebooks.pdf`);
+}
+
+export async function exportCourseExamSummariesPdf(courseName) {
+  return downloadCourseExport(courseName, "exam-summaries.pdf", `${courseName}_exam_summaries.pdf`);
 }
 
 export async function uploadFile(file, fileType, onProgress) {

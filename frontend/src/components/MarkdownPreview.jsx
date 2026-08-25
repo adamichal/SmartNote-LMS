@@ -3,8 +3,8 @@ import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import { prepareMarkdownForDisplay } from "../utils/markdownImages";
 
-export default function MarkdownPreview({ content, lectureId }) {
-  const displayContent = prepareMarkdownForDisplay(content, lectureId);
+export default function MarkdownPreview({ content, courseName, lectureId }) {
+  const displayContent = prepareMarkdownForDisplay(content, courseName, lectureId);
 
   return (
     <article dir="rtl" className="notebook-content h-full overflow-y-auto p-6">
@@ -13,12 +13,15 @@ export default function MarkdownPreview({ content, lectureId }) {
         rehypePlugins={[rehypeKatex]}
         components={{
           img: ({ src, alt }) => (
-            <img
-              src={src}
-              alt={alt || ""}
-              className="mx-auto my-4 max-w-full rounded-lg"
-              loading="lazy"
-            />
+            <figure className="notebook-figure">
+              <img
+                src={src}
+                alt={alt || ""}
+                className="notebook-image"
+                loading="lazy"
+              />
+              {alt && <figcaption className="notebook-figure__caption">{alt}</figcaption>}
+            </figure>
           ),
         }}
       >

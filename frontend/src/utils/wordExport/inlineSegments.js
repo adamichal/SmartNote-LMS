@@ -1,14 +1,13 @@
 import { needSpaceAfter, needSpaceBefore } from "./helpers";
 
-const INLINE_PATTERN =
-  /\$\$([^$]+)\$\$|\$([^$]+)\$|`([^`]+)`|\*\*(.+?)\*\*|\*([^*\n]+?)\*/g;
-
 export function splitInlineSegments(text) {
+  // Order matches notebooklm_converter: math, code, **bold**, *emph-as-bold*
+  const pattern = /\$\$([^$]+)\$\$|\$([^$]+)\$|`([^`]+)`|\*\*(.+?)\*\*|\*([^*\n]+?)\*/g;
   const parts = [];
   let lastIndex = 0;
   let match;
 
-  while ((match = INLINE_PATTERN.exec(text)) !== null) {
+  while ((match = pattern.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push({ type: "text", value: text.slice(lastIndex, match.index) });
     }
@@ -29,7 +28,7 @@ export function splitInlineSegments(text) {
       }
     }
 
-    lastIndex = INLINE_PATTERN.lastIndex;
+    lastIndex = pattern.lastIndex;
   }
 
   if (lastIndex < text.length) {

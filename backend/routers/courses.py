@@ -1,6 +1,8 @@
+import asyncio
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi.responses import FileResponse
 
 from backend.config import COURSE_CONTEXT_MAX_CHARS
 from backend.models.schemas import (
@@ -13,8 +15,10 @@ from backend.models.schemas import (
     CourseResponse,
     LectureCreate,
     LectureResponse,
+    BulkAiRetryResponse,
 )
 from backend.services import course_context, filesystem as fs, pipeline_runner
+from backend.services import export as export_service
 from backend.services.filesystem import parse_lecture_folder
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
@@ -52,8 +56,12 @@ async def create_lecture(
         body.topic,
         media_upload_id=body.media_upload_id,
         pdf_upload_id=body.pdf_upload_id,
+        pdf_upload_ids=body.pdf_upload_ids,
         transcript_upload_id=body.transcript_upload_id,
+        transcript_upload_ids=body.transcript_upload_ids,
         pdf_extra_upload_ids=body.pdf_extra_upload_ids,
+        extra_material_upload_ids=body.extra_material_upload_ids,
+        transcript_text=body.transcript_text,
         media_path=body.media_path,
         pdf_path=body.pdf_path,
     )
@@ -64,9 +72,72 @@ async def create_lecture(
     return result
 
 
+@router.post("/{course_name}/lectures/retry-ai-all", response_model=BulkAiRetryResponse)
+async def retry_all_lectures_ai(course_name: str):
+    queued = pipeline_runner.submit_course_ai_retry(course_name)
+    return BulkAiRetryResponse(course_name=course_name, queued=queued)
+
+
 @router.delete("/{course_name}/lectures/{lecture_id}", status_code=204)
 async def delete_lecture(course_name: str, lecture_id: str):
     fs.delete_lecture(course_name, lecture_id)
+
+
+@router.get("/{course_name}/export/notebooks.zip")
+async def export_course_notebooks_zip(course_name: str):
+    try:
+        zip_path, filename = await asyncio.to_thread(
+            export_service.export_course_notebooks_zip,
+            course_name,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return FileResponse(
+        zip_path,
+        media_type="application/zip",
+        filename=filename,
+    )
+
+
+@router.get("/{course_name}/export/notebooks.pdf")
+async def export_course_notebooks_pdf(course_name: str):
+    try:
+        pdf_path, filename = await asyncio.to_thread(
+            export_service.export_course_notebooks_combined_pdf,
+            course_name,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=filename,
+    )
+
+
+@router.get("/{course_name}/export/exam-summaries.pdf")
+async def export_course_exam_summaries_pdf(course_name: str):
+    try:
+        pdf_path, filename = await asyncio.to_thread(
+            export_service.export_course_exam_summaries_combined_pdf,
+            course_name,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=filename,
+    )
 
 
 @router.get("/{course_name}/materials", response_model=list[CourseMaterialResponse])

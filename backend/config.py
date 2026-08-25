@@ -12,9 +12,11 @@ COURSES_BASE_PATH = Path(
 UPLOADS_BASE_PATH = Path(
     os.getenv("UPLOADS_BASE_PATH", PROJECT_ROOT / ".uploads")
 ).resolve()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+WHISPER_MODEL = os.getenv("WHISPER_MODEL", "ivrit-ai/whisper-large-v3-turbo-ct2")
+WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")
+WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 # Raw value from .env; resolved at runtime via ffmpeg_utils (with PATH fallback).
 FFMPEG_PATH = os.getenv("FFMPEG_PATH", "").strip()
 

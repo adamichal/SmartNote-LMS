@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getLectureStatus, retryLecture } from "../api/client";
+import { retryLecture, retryLectureAiOnly } from "../api/client";
 
 const STAGES = [
   { key: "audio_extraction", label: "חילוץ אודיו", min: 0, max: 10 },
@@ -20,6 +20,7 @@ function stageState(stageKey, currentStage, progress, status, skippedStages = []
     if (thisIndex === failedIndex) return "error";
     return "pending";
   }
+  if (status === "pending") return "pending";
 
   const stage = STAGES.find((item) => item.key === stageKey);
   if (!stage) return "pending";
@@ -60,44 +61,45 @@ export default function ProcessingProgress() {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
   const [retrying, setRetrying] = useState(false);
-  const [pollKey, setPollKey] = useState(0);
+  const [streamKey, setStreamKey] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
+    const url = `/api/courses/${encodeURIComponent(decodedCourse)}/lectures/${encodeURIComponent(decodedLecture)}/status/stream`;
+    const es = new EventSource(url);
 
-    async function poll() {
+    es.onmessage = (event) => {
       try {
-        const data = await getLectureStatus(decodedLecture);
-        if (cancelled) return;
+        const data = JSON.parse(event.data);
+        if (data.stream_error) {
+          setError(data.stream_error);
+          es.close();
+          return;
+        }
         setStatus(data);
         setError("");
-        return data.status;
-      } catch (err) {
-        if (cancelled) return;
-        setError(typeof err.message === "string" ? err.message : "טעינת הסטטוס נכשלה");
-        return "error";
+        if (data.status === "completed" || data.status === "error") {
+          es.close();
+        }
+      } catch {
+        setError("שגיאה בקריאת נתוני סטטוס");
+        es.close();
       }
-    }
-
-    poll();
-    const interval = setInterval(async () => {
-      const currentStatus = await poll();
-      if (currentStatus === "completed" || currentStatus === "error") {
-        clearInterval(interval);
-      }
-    }, 2000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
     };
-  }, [decodedLecture, pollKey]);
+
+    es.onerror = () => {
+      setError("חיבור לשרת אבד — רענן את הדף");
+      es.close();
+    };
+
+    return () => es.close();
+  }, [decodedCourse, decodedLecture, streamKey]);
 
   async function handleRetry() {
     setRetrying(true);
+    setError("");
     try {
-      await retryLecture(decodedLecture);
-      setPollKey((key) => key + 1);
+      await retryLecture(decodedCourse, decodedLecture);
+      setStreamKey((k) => k + 1);
     } catch (err) {
       setError(typeof err.message === "string" ? err.message : "הניסיון החוזר נכשל");
     } finally {
@@ -105,8 +107,21 @@ export default function ProcessingProgress() {
     }
   }
 
+  async function handleRetryAiOnly() {
+    setRetrying(true);
+    setError("");
+    try {
+      await retryLectureAiOnly(decodedCourse, decodedLecture);
+      setStreamKey((k) => k + 1);
+    } catch (err) {
+      setError(typeof err.message === "string" ? err.message : "עיבוד AI מחדש נכשל");
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   if (!status && !error) {
-    return <p className="text-slate-500">טוען...</p>;
+    return <p className="text-slate-500">מתחבר לשרת...</p>;
   }
 
   const progress = status?.progress_pct ?? 0;
@@ -121,6 +136,10 @@ export default function ProcessingProgress() {
         : jobStatus === "error"
           ? "שגיאה בעיבוד"
           : "ממתין לעיבוד";
+
+  const canRetryAiOnly =
+    (jobStatus === "completed" || jobStatus === "error") &&
+    (status?.stage === "ai_editing" || status?.stage === "notebook_assembly" || jobStatus === "completed");
 
   return (
     <div>
@@ -197,6 +216,19 @@ export default function ProcessingProgress() {
               פתח מחברת
             </Link>
           )}
+
+          {canRetryAiOnly && (
+            <button
+              type="button"
+              onClick={handleRetryAiOnly}
+              disabled={retrying}
+              className="btn-secondary disabled:opacity-50"
+              title="מריץ מחדש רק את שלב Gemini ואת הרכבת המחברת — ללא תמלול מחדש"
+            >
+              {retrying ? "מעבד..." : "עבד AI מחדש"}
+            </button>
+          )}
+
           {(jobStatus === "error" || (jobStatus === "completed" && !status?.has_notebook)) && (
             <button
               type="button"
@@ -204,7 +236,7 @@ export default function ProcessingProgress() {
               disabled={retrying}
               className="btn-primary disabled:opacity-50"
             >
-              {retrying ? "מנסה שוב..." : jobStatus === "completed" ? "המשך עיבוד AI" : "נסה שוב"}
+              {retrying ? "מנסה שוב..." : "נסה שוב מההתחלה"}
             </button>
           )}
         </div>

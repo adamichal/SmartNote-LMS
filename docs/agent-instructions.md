@@ -266,7 +266,7 @@ Respond ONLY with the Markdown content. No preamble, no explanation.
 ```
 OPENAI_API_KEY=sk-...
 GEMINI_API_KEY=AIza...
-COURSES_BASE_PATH=C:/Users/user/Projects/SmartNote_Project/Courses
+COURSES_BASE_PATH=C:/path/to/SmartNote_Project/Courses
 FFMPEG_PATH=C:/ffmpeg/bin/ffmpeg.exe
 ```
 

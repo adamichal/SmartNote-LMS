@@ -15,7 +15,20 @@ ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md"}
 
 
 def _course_materials_path(course_path: Path) -> Path:
-    return course_path / COURSE_MATERIALS_DIR
+    return course_path.resolve() / COURSE_MATERIALS_DIR
+
+
+def _resolve_material_file(course_path: Path, file_path: Path) -> Path:
+    resolved_course = course_path.resolve()
+    resolved_file = file_path.resolve()
+    materials_dir = _course_materials_path(resolved_course)
+    try:
+        resolved_file.relative_to(materials_dir)
+    except ValueError as exc:
+        raise ValueError(f"Material file is outside course_materials: {resolved_file}") from exc
+    if not resolved_file.is_file():
+        raise FileNotFoundError(f"Material file not found: {resolved_file}")
+    return resolved_file
 
 
 def ensure_course_materials_dir(course_path: Path) -> Path:
@@ -107,7 +120,9 @@ def _cache_key(file_path: Path) -> str:
 
 
 def _cache_path(course_path: Path, file_path: Path) -> Path:
-    return _course_materials_path(course_path) / TEXT_CACHE_DIR / f"{file_path.stem}_{_cache_key(file_path)}.txt"
+    resolved_file = _resolve_material_file(course_path, file_path)
+    safe_stem = re.sub(r'[<>:"/\\|?*]', "_", resolved_file.stem)
+    return _course_materials_path(course_path) / TEXT_CACHE_DIR / f"{safe_stem}_{_cache_key(resolved_file)}.txt"
 
 
 def _invalidate_cache_for_file(course_path: Path, filename: str) -> None:
@@ -133,18 +148,23 @@ def _extract_pdf_text(pdf_path: Path) -> str:
 
 
 def extract_material_text(course_path: Path, file_path: Path) -> str:
-    extension = file_path.suffix.lower()
+    try:
+        resolved_file = _resolve_material_file(course_path, file_path)
+    except (ValueError, FileNotFoundError):
+        return ""
+
+    extension = resolved_file.suffix.lower()
     if extension not in ALLOWED_EXTENSIONS:
         return ""
 
-    cache = _cache_path(course_path, file_path)
+    cache = _cache_path(course_path, resolved_file)
     if cache.exists():
         return cache.read_text(encoding="utf-8")
 
     if extension == ".pdf":
-        text = _extract_pdf_text(file_path)
+        text = _extract_pdf_text(resolved_file)
     else:
-        text = file_path.read_text(encoding="utf-8")
+        text = resolved_file.read_text(encoding="utf-8")
 
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(text, encoding="utf-8")
@@ -152,11 +172,17 @@ def extract_material_text(course_path: Path, file_path: Path) -> str:
 
 
 def _extract_summary_from_notebook(notebook_path: Path) -> str | None:
+    lecture_path = notebook_path.parent
+    exam_path = lecture_path / "exam_summary.md"
+    if exam_path.exists():
+        content = exam_path.read_text(encoding="utf-8").strip()
+        if content:
+            return content
     if not notebook_path.exists():
         return None
     content = notebook_path.read_text(encoding="utf-8")
     pattern = re.compile(
-        r"^##\s*סיכום מהיר\s*\n(.*?)(?=\n## |\Z)",
+        r"^##\s*סיכום(?:\s*מהיר|\s*ונקודות מפתח)?\s*\n(.*?)(?=\n## |\Z)",
         re.MULTILINE | re.DOTALL,
     )
     match = pattern.search(content)
@@ -202,11 +228,16 @@ def _build_shared_materials(course_path: Path) -> str:
     lines = ["# חומרים משותפים לקורס"]
     found_any = False
     for entry in sorted(materials_dir.iterdir()):
+        if entry.name.startswith("."):
+            continue
         if not entry.is_file() or entry.suffix.lower() not in ALLOWED_EXTENSIONS:
             continue
-        found_any = True
-        text = extract_material_text(course_path, entry)
+        try:
+            text = extract_material_text(course_path, entry)
+        except OSError:
+            continue
         if text.strip():
+            found_any = True
             lines.append(f"\n## {entry.name}\n{text}")
     if not found_any:
         return ""
@@ -239,7 +270,7 @@ def _truncate_context(sections: list[tuple[str, int]], max_chars: int) -> str:
 
 
 def build_course_context_for_lecture(lecture_path: Path) -> str:
-    course_path = lecture_path.parent
+    course_path = lecture_path.resolve().parent
     course_name = course_path.name
     parsed = parse_lecture_folder(lecture_path.name)
     if not parsed:

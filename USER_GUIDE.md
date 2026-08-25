@@ -28,12 +28,12 @@ SmartNote היא אפליקציה מקומית שממירה חומרי הרצא�
 - Python 3.11+
 - Node.js 18+
 - FFmpeg (לחילוץ אודיו מוידאו)
-- מפתחות API: OpenAI (Whisper) + Google Gemini
+- מפתח API: Google Gemini (התמלול רץ מקומית עם Whisper)
 
 ### התקנה (פעם אחת)
 
 ```powershell
-cd C:\Users\user\Projects\SmartNote_Project
+cd C:\path\to\SmartNote_Project
 copy .env.example .env
 ```
 
@@ -41,7 +41,6 @@ copy .env.example .env
 
 | משתנה | תיאור |
 |--------|--------|
-| `OPENAI_API_KEY` | מפתח OpenAI לתמלול Whisper |
 | `GEMINI_API_KEY` | מפתח Gemini לעריכת המחברת |
 | `COURSES_BASE_PATH` | נתיב לתיקיית `Courses` |
 | `FFMPEG_PATH` | נתיב מלא ל-`ffmpeg.exe` (אם לא ב-PATH) |
@@ -61,7 +60,7 @@ cd ..
 **טרמינל 1 — Backend:**
 
 ```powershell
-cd C:\Users\user\Projects\SmartNote_Project
+cd C:\path\to\SmartNote_Project
 .\.venv\Scripts\Activate.ps1
 uvicorn backend.main:app --reload --port 8000 --reload-dir backend
 ```
@@ -69,7 +68,7 @@ uvicorn backend.main:app --reload --port 8000 --reload-dir backend
 **טרמינל 2 — Frontend:**
 
 ```powershell
-cd C:\Users\user\Projects\SmartNote_Project\frontend
+cd C:\path\to\SmartNote_Project\frontend
 npm run dev
 ```
 

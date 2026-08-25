@@ -12,8 +12,16 @@ from backend.services.files import MEDIA_EXTENSIONS, PDF_EXTENSIONS
 
 CONTENT_RANGE_PATTERN = re.compile(r"^bytes (\d+)-(\d+)/(\d+)$")
 TRANSCRIPT_EXTENSIONS = {".txt"}
+LECTURE_EXTRA_EXTENSIONS = {".pdf", ".txt", ".md"}
 COURSE_MATERIAL_EXTENSIONS = {".pdf", ".txt", ".md"}
-ALLOWED_FILE_TYPES = {"media", "pdf", "transcript", "pdf_extra", "course_material"}
+ALLOWED_FILE_TYPES = {
+    "media",
+    "pdf",
+    "transcript",
+    "pdf_extra",
+    "lecture_extra",
+    "course_material",
+}
 
 
 def _upload_dir(upload_id: str) -> Path:
@@ -46,8 +54,10 @@ def _validate_filename(filename: str, file_type: str) -> str:
     extension = Path(filename).suffix.lower()
     if file_type == "media":
         allowed = MEDIA_EXTENSIONS
-    elif file_type in {"pdf", "pdf_extra"}:
+    elif file_type == "pdf":
         allowed = PDF_EXTENSIONS
+    elif file_type in {"pdf_extra", "lecture_extra"}:
+        allowed = LECTURE_EXTRA_EXTENSIONS
     elif file_type == "transcript":
         allowed = TRANSCRIPT_EXTENSIONS
     elif file_type == "course_material":
@@ -68,7 +78,7 @@ def init_upload(filename: str, file_type: str, total_size: int) -> dict:
     if file_type not in ALLOWED_FILE_TYPES:
         raise HTTPException(
             status_code=400,
-            detail="file_type must be one of: media, pdf, transcript, pdf_extra, course_material",
+            detail="file_type must be one of: media, pdf, transcript, pdf_extra, lecture_extra, course_material",
         )
     if total_size <= 0:
         raise HTTPException(status_code=400, detail="total_size must be positive")
@@ -141,34 +151,101 @@ def require_complete_upload(upload_id: str) -> dict:
     return meta
 
 
-def finalize_upload_to_raw_media(upload_id: str, raw_media_dir: Path) -> None:
+def _next_extra_material_name(raw_media_dir: Path, extension: str) -> str:
+    existing = sorted(raw_media_dir.glob(f"extra_material_*{extension}"))
+    return f"extra_material_{len(existing) + 1}{extension}"
+
+
+def finalize_upload_to_raw_media(upload_id: str, raw_media_dir: Path) -> dict:
     meta = require_complete_upload(upload_id)
     part_path = _part_path(upload_id)
 
     if meta["file_type"] == "media":
         dest_name = "lecture.mp4" if meta["extension"] == ".mp4" else "lecture.mp3"
+        category = "media"
     elif meta["file_type"] == "pdf":
         dest_name = "presentation.pdf"
-    elif meta["file_type"] == "pdf_extra":
-        existing = sorted(raw_media_dir.glob("extra_material_*.pdf"))
-        dest_name = f"extra_material_{len(existing) + 1}.pdf"
+        category = "presentation"
+    elif meta["file_type"] in {"pdf_extra", "lecture_extra"}:
+        dest_name = _next_extra_material_name(raw_media_dir, meta["extension"])
+        category = "extra"
     else:
         raise HTTPException(status_code=400, detail="Use finalize_transcript for transcript uploads")
 
     raw_media_dir.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(part_path), str(raw_media_dir / dest_name))
+    dest_path = raw_media_dir / dest_name
+    shutil.move(str(part_path), str(dest_path))
     shutil.rmtree(_upload_dir(upload_id), ignore_errors=True)
+    return {
+        "category": category,
+        "filename": dest_name,
+        "original_name": meta["filename"],
+        "extension": meta["extension"],
+        "size_bytes": dest_path.stat().st_size,
+    }
 
 
-def finalize_transcript_upload(upload_id: str, lecture_path: Path) -> None:
+def finalize_presentation_upload(upload_id: str, raw_media_dir: Path, index: int) -> dict:
     meta = require_complete_upload(upload_id)
-    if meta["file_type"] != "transcript":
-        raise HTTPException(status_code=400, detail="Upload is not a transcript")
+    if meta["file_type"] != "pdf":
+        raise HTTPException(status_code=400, detail="Upload is not a presentation PDF")
+
+    dest_name = "presentation.pdf" if index == 0 else f"presentation_{index + 1}.pdf"
+    raw_media_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = raw_media_dir / dest_name
+    shutil.move(str(_part_path(upload_id)), str(dest_path))
+    shutil.rmtree(_upload_dir(upload_id), ignore_errors=True)
+    return {
+        "category": "presentation",
+        "filename": dest_name,
+        "original_name": meta["filename"],
+        "extension": meta["extension"],
+        "size_bytes": dest_path.stat().st_size,
+    }
+
+
+def finalize_transcript_uploads(upload_ids: list[str], lecture_path: Path) -> list[dict]:
+    if not upload_ids:
+        return []
 
     transcripts_dir = lecture_path / "transcripts"
     transcripts_dir.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(_part_path(upload_id)), str(transcripts_dir / "raw_transcript.txt"))
-    shutil.rmtree(_upload_dir(upload_id), ignore_errors=True)
+    sections: list[str] = []
+    entries: list[dict] = []
+
+    for upload_id in upload_ids:
+        meta = require_complete_upload(upload_id)
+        if meta["file_type"] != "transcript":
+            raise HTTPException(status_code=400, detail="Upload is not a transcript")
+
+        text = _part_path(upload_id).read_text(encoding="utf-8")
+        sections.append(f"### תמלול: {meta['filename']}\n{text.strip()}")
+        entries.append(
+            {
+                "category": "transcript",
+                "filename": "raw_transcript.txt",
+                "original_name": meta["filename"],
+                "extension": meta["extension"],
+                "size_bytes": len(text.encode("utf-8")),
+            }
+        )
+        shutil.rmtree(_upload_dir(upload_id), ignore_errors=True)
+
+    merged_path = transcripts_dir / "raw_transcript.txt"
+    merged_path.write_text("\n\n---\n\n".join(sections), encoding="utf-8")
+    if entries:
+        entries = [
+            {
+                **entries[0],
+                "size_bytes": merged_path.stat().st_size,
+                "original_name": ", ".join(item["original_name"] for item in entries),
+            }
+        ]
+    return entries
+
+
+def finalize_transcript_upload(upload_id: str, lecture_path: Path) -> None:
+    finalize_transcript_uploads([upload_id], lecture_path)
 
 
 def finalize_upload_to_course_materials(upload_id: str, course_path: Path) -> Path:

@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   optimizeDeps: {
-    include: ["@mdxeditor/editor"],
+    include: ["@mdxeditor/editor", "mermaid"],
   },
   server: {
     proxy: {

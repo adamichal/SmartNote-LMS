@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 from backend.models.schemas import (
@@ -41,17 +41,23 @@ async def get_lecture_status(course_name: str, lecture_id: str):
     return job_status.get_lecture_status(course_name, lecture_id)
 
 
+LECTURE_BUSY_MESSAGE = "ההרצאה כבר בעיבוד — חכי שהעיבוד הנוכחי יסתיים"
+
+
 @router.post("/{lecture_id}/retry", response_model=JobStatusResponse)
-async def retry_lecture(course_name: str, lecture_id: str, background_tasks: BackgroundTasks):
+async def retry_lecture(course_name: str, lecture_id: str):
     lecture_path = get_lecture_path(course_name, lecture_id)
-    background_tasks.add_task(pipeline_runner.submit_retry, lecture_path)
+    # submit only queues the job, so it's fine to call it right here
+    if not pipeline_runner.submit_retry(lecture_path):
+        raise HTTPException(status_code=409, detail=LECTURE_BUSY_MESSAGE)
     return job_status.get_lecture_status(course_name, lecture_id)
 
 
 @router.post("/{lecture_id}/retry-ai", response_model=JobStatusResponse)
-async def retry_lecture_ai_only(course_name: str, lecture_id: str, background_tasks: BackgroundTasks):
+async def retry_lecture_ai_only(course_name: str, lecture_id: str):
     lecture_path = get_lecture_path(course_name, lecture_id)
-    background_tasks.add_task(pipeline_runner.submit_ai_only, lecture_path)
+    if not pipeline_runner.submit_ai_only(lecture_path):
+        raise HTTPException(status_code=409, detail=LECTURE_BUSY_MESSAGE)
     return job_status.get_lecture_status(course_name, lecture_id)
 
 
@@ -112,6 +118,9 @@ async def get_exam_summary(course_name: str, lecture_id: str):
 @router.post("/{lecture_id}/exam-summary/generate", response_model=NotebookResponse)
 async def generate_exam_summary_endpoint(course_name: str, lecture_id: str):
     lecture_path = get_lecture_path(course_name, lecture_id)
+    # the pipeline writes exam_summary.md too, don't race with it
+    if pipeline_runner.is_lecture_busy(lecture_path):
+        raise HTTPException(status_code=409, detail=LECTURE_BUSY_MESSAGE)
     try:
         notebook_content = notebook.read_notebook(lecture_path)
         from backend.services.exam_summary import refresh_exam_summary

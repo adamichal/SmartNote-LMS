@@ -1,5 +1,6 @@
 """Export all completed course notebooks to PDF ZIP files."""
 
+import argparse
 import shutil
 import sys
 from pathlib import Path
@@ -16,6 +17,11 @@ from backend.services.export import export_course_notebooks_zip
 
 
 def main() -> None:
+    argparse.ArgumentParser(
+        description="Export a PDF ZIP per course (every course with notebooks) to "
+        "~/Downloads/SmartNote_Exports. No arguments, no Gemini calls.",
+    ).parse_args()
+
     output_dir = Path.home() / "Downloads" / "SmartNote_Exports"
     output_dir.mkdir(parents=True, exist_ok=True)
 

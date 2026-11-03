@@ -2,7 +2,7 @@ import concurrent.futures
 import threading
 from pathlib import Path
 
-from backend.services.pipeline import run_pipeline, retry_pipeline, run_ai_only_pipeline
+from backend.services.pipeline import retry_pipeline, run_ai_only_pipeline, run_pipeline
 
 _executor = concurrent.futures.ThreadPoolExecutor(max_workers=3, thread_name_prefix="pipeline")
 

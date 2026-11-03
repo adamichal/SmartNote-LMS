@@ -1,0 +1,2 @@
+# keep LF everywhere so CRLF round-trips can't double blank lines again
+* text=auto eol=lf

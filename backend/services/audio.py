@@ -86,7 +86,7 @@ def extract_audio(lecture_path: Path) -> Path:
 
 
 def split_audio_if_needed(lecture_path: Path, mp3_path: Path) -> list[Path]:
-    from backend.config import WHISPER_MAX_BYTES, AUDIO_SEGMENT_SECONDS
+    from backend.config import AUDIO_SEGMENT_SECONDS, WHISPER_MAX_BYTES
 
     verified_mp3 = _verify_media_file(mp3_path, lecture_path, "MP3 for chunking")
     chunks_dir = lecture_path / "raw_media" / "audio_chunks"

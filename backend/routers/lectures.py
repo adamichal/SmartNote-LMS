@@ -1,7 +1,6 @@
 import asyncio
 import json
 from pathlib import Path
-from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
@@ -13,7 +12,8 @@ from backend.models.schemas import (
     NotebookResponse,
     NotebookUpdate,
 )
-from backend.services import export as export_service, job_status, notebook, pipeline_runner
+from backend.services import export as export_service
+from backend.services import job_status, notebook, pipeline_runner
 from backend.services.filesystem import get_lecture_path, get_lecture_sources
 
 router = APIRouter(prefix="/api/courses/{course_name}/lectures", tags=["lectures"])

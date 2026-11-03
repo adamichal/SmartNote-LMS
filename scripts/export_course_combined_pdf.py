@@ -1,5 +1,6 @@
 """Export combined course PDFs (notebooks + exam summaries)."""
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -17,7 +18,12 @@ from backend.services.export import (
 
 
 def main() -> None:
-    course_name = sys.argv[1] if len(sys.argv) > 1 else "אתיקה"
+    parser = argparse.ArgumentParser(
+        description="Build two combined PDFs for a course: all notebooks and all "
+        "exam summaries. No Gemini calls.",
+    )
+    parser.add_argument("course_name", help='course folder name under Courses/, e.g. "אתיקה"')
+    course_name = parser.parse_args().course_name
     print(f"Exporting combined PDFs for: {course_name}")
 
     notebooks_path, _ = export_course_notebooks_combined_pdf(course_name)

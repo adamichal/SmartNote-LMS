@@ -36,7 +36,10 @@ INTERRUPTED_ERROR = "העיבוד נקטע (השרת הופעל מחדש) — א
 
 def _recover_lecture(lecture_path: Path) -> str | None:
     """Fix one lecture left in processing/pending by a stopped server. Returns what was done."""
-    from backend.services.notebook_backup import latest_backup_with_notebook, restore_backup
+    from backend.services.notebook_backup import (
+        latest_backup_with_notebook,
+        restore_backup,
+    )
 
     try:
         status = read_job_status(lecture_path)

@@ -6,7 +6,10 @@ import re
 from pathlib import Path
 
 from backend.services.job_status import log_pipeline
-from backend.services.notebook_coverage import topics_from_manifest, topics_from_pdf_text
+from backend.services.notebook_coverage import (
+    topics_from_manifest,
+    topics_from_pdf_text,
+)
 
 _H2_PATTERN = re.compile(r"^##\s+(?!🔗|פתיחה|סיכום|📋|תרגול)(.+)$", re.MULTILINE)
 _DEFINITION_PATTERN = re.compile(r"^>\s*\*\*הגדרה", re.MULTILINE)

@@ -1,0 +1,3 @@
+# dev tools only (runtime deps live in requirements.txt)
+ruff
+pytest

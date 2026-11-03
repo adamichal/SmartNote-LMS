@@ -5,7 +5,10 @@ from pathlib import Path
 from backend.services.exam_summary import refresh_exam_summary
 from backend.services.job_status import log_pipeline, write_job_status
 from backend.services.notebook_format import format_notebook_content
-from backend.services.notebook_images import is_non_content_slide, sanitize_slide_images_in_markdown
+from backend.services.notebook_images import (
+    is_non_content_slide,
+    sanitize_slide_images_in_markdown,
+)
 from backend.services.notebook_styling import enrich_notebook_markdown
 
 IMAGE_REF_PATTERN = re.compile(

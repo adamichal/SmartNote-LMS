@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 from backend.config import WHISPER_COMPUTE_TYPE, WHISPER_DEVICE, WHISPER_MODEL
@@ -27,10 +28,23 @@ def transcribe_audio(lecture_path: Path, audio_chunks: list[Path]) -> Path:
     model = _get_model()
     transcript_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # each chunk's text is saved as soon as it's done, so a stopped server
+    # doesn't throw away hours of Whisper work
+    partial_dir = transcript_path.parent / "partial"
+    partial_dir.mkdir(exist_ok=True)
+
     parts: list[str] = []
     total_chunks = len(audio_chunks)
 
     for index, chunk_path in enumerate(audio_chunks, start=1):
+        chunk_text_path = partial_dir / f"{chunk_path.stem}.txt"
+        if chunk_text_path.exists():
+            log_pipeline(lecture_path, f"Chunk {index}/{total_chunks} already transcribed — reusing {chunk_text_path.name}")
+            text = chunk_text_path.read_text(encoding="utf-8").strip()
+            if text:
+                parts.append(text)
+            continue
+
         progress = 10 + round((index / total_chunks) * 40)
         write_job_status(
             lecture_path,
@@ -43,10 +57,16 @@ def transcribe_audio(lecture_path: Path, audio_chunks: list[Path]) -> Path:
 
         segments, _info = model.transcribe(str(chunk_path), language="he", beam_size=5)
         text = " ".join(segment.text for segment in segments).strip()
+        # write to .tmp then rename, so a half-written file never counts as done
+        tmp_path = chunk_text_path.with_suffix(".tmp")
+        tmp_path.write_text(text, encoding="utf-8")
+        tmp_path.replace(chunk_text_path)
         if text:
             parts.append(text)
 
     full_transcript = "\n\n".join(parts)
     transcript_path.write_text(full_transcript, encoding="utf-8")
     log_pipeline(lecture_path, f"Transcription saved to {transcript_path.name}")
+    # full transcript is saved, the per-chunk files aren't needed anymore
+    shutil.rmtree(partial_dir, ignore_errors=True)
     return transcript_path

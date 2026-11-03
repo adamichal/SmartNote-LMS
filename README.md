@@ -26,7 +26,7 @@ Lectures process in parallel (up to 3 concurrent jobs) in a background thread po
 | PDF processing | PyMuPDF |
 | Media processing | FFmpeg |
 | Editor | MDXEditor, Turndown, remark/rehype, KaTeX, Mermaid |
-| Export | Custom DOCX builder (JSZip), Pandoc (optional), browser print-to-PDF |
+| Export | Custom client-side DOCX builder (JSZip), browser print-to-PDF |
 
 ## Screenshots
 
@@ -125,7 +125,8 @@ After fixing, restart the backend. On the next pipeline run, `pipeline.log` insi
 ### Export prerequisites
 
 - **PDF** — opens a print preview in the browser (Hebrew + math render correctly). Choose **Save as PDF** / **Microsoft Print to PDF** in the print dialog.
-- **DOCX** — requires [Pandoc](https://pandoc.org/installing.html) installed and available on PATH.
+- **DOCX** — built entirely in the browser (JSZip), nothing to install.
+  (A legacy Pandoc-based `/export` API route still exists server-side, but no UI button uses it.)
 
 ## Project structure
 

@@ -145,6 +145,7 @@ def list_lectures(course_name: str) -> list[dict]:
                 "number": number,
                 "topic": topic,
                 "status": _read_lecture_status(entry),
+                "has_notebook": (entry / "final_notebook.md").is_file(),
             }
         )
     lectures.sort(key=lambda item: item["number"])

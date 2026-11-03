@@ -43,6 +43,7 @@ class LectureResponse(BaseModel):
     number: int
     topic: str
     status: str
+    has_notebook: bool = False
 
 
 class BulkAiRetryResponse(BaseModel):

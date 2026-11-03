@@ -157,8 +157,6 @@ function rowsToFlowchart(rows) {
       for (const source of from) {
         lines.push(`    ${nodeId(source)} --> ${nodeId(to[0])}`);
       }
-    } else if (from.length === 1 && to.length === 1) {
-      lines.push(`    ${nodeId(from[0])} --> ${nodeId(to[0])}`);
     } else {
       for (const source of from) {
         lines.push(`    ${nodeId(source)} --> ${nodeId(to[0])}`);

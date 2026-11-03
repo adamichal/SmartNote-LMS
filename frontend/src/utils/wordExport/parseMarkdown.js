@@ -96,7 +96,7 @@ export function parseNotebookMarkdown(text) {
         lines[index].trim().endsWith("|")
       ) {
         const row = lines[index].trim();
-        if (/^[\|\s\-:]+$/.test(row)) {
+        if (/^[|\s\-:]+$/.test(row)) {
           index += 1;
           continue;
         }

@@ -17,12 +17,13 @@ function emphasisProps(segment) {
   return props;
 }
 
+// rPr children must follow schema order: rFonts, b/bCs, ..., rtl, ..., lang
 function buildCodeRun(text, segment) {
   if (!text) return "";
   const runProps = [
     '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/>',
-    '<w:lang w:val="en-US"/>',
     ...emphasisProps(segment),
+    '<w:lang w:val="en-US"/>',
   ];
   return `<w:r><w:rPr>${runProps.join("")}</w:rPr><w:t xml:space="preserve">${escapeDocxText(text)}</w:t></w:r>`;
 }
@@ -31,8 +32,8 @@ function buildLtrTextRun(text, fontDocx, segment) {
   if (!text) return "";
   const runProps = [
     `<w:rFonts w:ascii="${escapeXml(fontDocx)}" w:hAnsi="${escapeXml(fontDocx)}" w:cs="Courier New" w:eastAsia="${escapeXml(fontDocx)}"/>`,
-    '<w:lang w:val="en-US"/>',
     ...emphasisProps(segment),
+    '<w:lang w:val="en-US"/>',
   ];
   return `<w:r><w:rPr>${runProps.join("")}</w:rPr><w:t xml:space="preserve">${escapeDocxText(text)}</w:t></w:r>`;
 }
@@ -77,7 +78,7 @@ export function attachMathDelimiters(segments) {
 
     const previous = result[result.length - 1];
     if (previous?.type === "text") {
-      const openMatch = previous.value.match(/([\(\[]\s*)$/);
+      const openMatch = previous.value.match(/([([]\s*)$/);
       if (openMatch) {
         leading = openMatch[1];
         previous.value = previous.value.slice(0, -openMatch[1].length);
@@ -87,7 +88,7 @@ export function attachMathDelimiters(segments) {
 
     let nextIndex = index + 1;
     if (nextIndex < segments.length && segments[nextIndex].type === "text") {
-      const closeMatch = segments[nextIndex].value.match(/^(\s*[\)\]]+[.,;:!?]*\s*)/);
+      const closeMatch = segments[nextIndex].value.match(/^(\s*[)\]]+[.,;:!?]*\s*)/);
       if (closeMatch) {
         trailing = closeMatch[1];
         const remainder = segments[nextIndex].value.slice(closeMatch[1].length);
@@ -134,7 +135,8 @@ export function buildDocxInlineRuns(text, fontDocx) {
       if (segment.leading) {
         xml += buildLtrTextRun(segment.leading, fontDocx, segment);
       }
-      xml += `<w:r>${latexToOMML(segment.value)}</w:r>`;
+      // m:oMath is a sibling of w:r inside w:p; wrapping it in w:r corrupts the file
+      xml += latexToOMML(segment.value);
       if (segment.trailing) {
         xml += buildLtrTextRun(segment.trailing, fontDocx, segment);
       }

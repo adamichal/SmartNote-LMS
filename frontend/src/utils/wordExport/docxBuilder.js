@@ -1,7 +1,8 @@
 import JSZip from "jszip";
 import { resolveWordFont } from "./config";
-import { escapeXml, expandCalloutSections, pxToEmu, scaleImageDimensions } from "./helpers";
+import { expandCalloutSections, pxToEmu, scaleImageDimensions } from "./helpers";
 import { buildDocxInlineRuns } from "./docxInline";
+import { latexToOMML } from "./latexOmml";
 import {
   BODY_PARAGRAPH_SPACING_AFTER,
   BLOCK_GAP_SPACING,
@@ -27,13 +28,25 @@ function paragraphSpacingXml(style, numPr) {
   return "";
 }
 
+// a line that is only "$$...$$" becomes its own display-math paragraph
+const DISPLAY_MATH_LINE = /^\$\$([^$]+)\$\$$/;
+
+function buildDisplayMathParagraph(latex) {
+  return `<w:p><w:pPr><w:spacing w:after="${BODY_PARAGRAPH_SPACING_AFTER}"/><w:jc w:val="center"/></w:pPr><m:oMathPara>${latexToOMML(latex)}</m:oMathPara></w:p>`;
+}
+
 function buildParagraph(content, style, numPr, fontDocx) {
+  const displayMath = !style && !numPr && content.trim().match(DISPLAY_MATH_LINE);
+  if (displayMath) return buildDisplayMathParagraph(displayMath[1]);
+
+  // pPr children must follow schema order: pStyle, numPr, ..., bidi, spacing, ..., jc
   let paragraphProps = "<w:pPr>";
   if (style) paragraphProps += `<w:pStyle w:val="${style}"/>`;
   if (numPr) paragraphProps += numPr;
+  paragraphProps += "<w:bidi/>";
   const spacing = paragraphSpacingXml(style, numPr);
   if (spacing) paragraphProps += spacing;
-  paragraphProps += '<w:bidi/><w:jc w:val="right"/></w:pPr>';
+  paragraphProps += '<w:jc w:val="right"/></w:pPr>';
   const runs = buildDocxInlineRuns(content, fontDocx);
   if (!runs.trim()) {
     return `<w:p>${paragraphProps}</w:p>`;
@@ -54,7 +67,7 @@ function buildBlockquote(content, fontDocx) {
 function buildImageDrawing(relId, widthPx, heightPx, docPrId) {
   const widthEmu = pxToEmu(widthPx);
   const heightEmu = pxToEmu(heightPx);
-  return `<w:p><w:pPr><w:bidi/><w:jc w:val="center"/><w:spacing w:after="${BODY_PARAGRAPH_SPACING_AFTER}"/></w:pPr><w:r><w:drawing>
+  return `<w:p><w:pPr><w:bidi/><w:spacing w:after="${BODY_PARAGRAPH_SPACING_AFTER}"/><w:jc w:val="center"/></w:pPr><w:r><w:drawing>
     <wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
       <wp:extent cx="${widthEmu}" cy="${heightEmu}"/>
       <wp:effectExtent l="0" t="0" r="0" b="0"/>
@@ -124,7 +137,7 @@ function appendBlockXml(block, fontDocx, imageRelMap, state) {
   } else if (block.type === "blockquote") {
     body += buildBlockquote(block.content, fontDocx);
   } else if (block.type === "hr") {
-    body += `<w:p><w:pPr><w:bidi/><w:jc w:val="right"/><w:spacing w:after="${BODY_PARAGRAPH_SPACING_AFTER}"/><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="CCCCCC"/></w:pBdr></w:pPr></w:p>`;
+    body += `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="CCCCCC"/></w:pBdr><w:bidi/><w:spacing w:after="${BODY_PARAGRAPH_SPACING_AFTER}"/><w:jc w:val="right"/></w:pPr></w:p>`;
   } else if (block.type === "image") {
     const rel = imageRelMap.get(block);
     if (rel) {

@@ -119,8 +119,8 @@ function fixSvgLabelNode(nodeGroup) {
   if (!shapes.length) return false;
 
   const shape = shapes[0];
-  let shapeWidth = 0;
-  let shapeHeight = 0;
+  let shapeWidth;
+  let shapeHeight;
 
   if (shape.tagName.toLowerCase() === "rect") {
     shapeWidth = parseNum(shape.getAttribute("width"));

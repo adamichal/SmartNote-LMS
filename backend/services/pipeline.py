@@ -10,6 +10,8 @@ from backend.services.ffmpeg_utils import resolve_ffmpeg_executable
 
 from backend.services.job_status import log_pipeline, write_job_status
 
+from backend.services.notebook_backup import BACKUP_DIR_NAME, backup_ai_outputs, restore_backup
+
 
 
 
@@ -258,16 +260,12 @@ def run_ai_only_pipeline(lecture_path: Path) -> None:
         skipped_stages=["audio_extraction", "transcribing", "pdf_processing"],
     )
 
+    backup_dir = None
     try:
-        ai_draft = lecture_path / "transcripts" / "ai_draft.md"
-        final_notebook = lecture_path / "final_notebook.md"
-        if ai_draft.exists():
-            ai_draft.unlink()
-        if final_notebook.exists():
-            final_notebook.unlink()
-        exam_summary = lecture_path / "exam_summary.md"
-        if exam_summary.exists():
-            exam_summary.unlink()
+        # move old outputs aside (not delete) so a failed run doesn't lose the notebook
+        backup_dir = backup_ai_outputs(lecture_path)
+        if backup_dir:
+            log_pipeline(lecture_path, f"Old notebook files backed up to {BACKUP_DIR_NAME}/{backup_dir.name}")
 
         gemini.generate_notebook_draft(lecture_path)
 
@@ -293,6 +291,13 @@ def run_ai_only_pipeline(lecture_path: Path) -> None:
     except Exception as exc:
         error_message = str(exc)
         log_pipeline(lecture_path, f"AI-only reprocess failed: {error_message}")
+        if backup_dir:
+            try:
+                restore_backup(lecture_path, backup_dir)
+                log_pipeline(lecture_path, f"Restored previous notebook from {BACKUP_DIR_NAME}/{backup_dir.name}")
+            except Exception as restore_exc:
+                # still write the error status below, the files stay in backup/
+                log_pipeline(lecture_path, f"Restore from backup failed: {restore_exc}")
         write_job_status(
             lecture_path,
             status="error",

@@ -62,9 +62,13 @@ export default function LectureList() {
   }
 
   async function handleRetryAllAi() {
+    // each lecture = 2 Gemini calls (notebook + exam summary), so say the numbers up front
+    const count = lectures.length;
     if (!window.confirm(
-      "לעבד מחדש את כל ההרצאות עם AI?\n"
-      + "התמלולים, המצגות והחומרים נשמרים — רק המחברות ייווצרו מחדש.",
+      `לעבד מחדש עם AI את כל ${count} ההרצאות?\n\n`
+      + `זה יפעיל עד ${count * 2} קריאות ל-Gemini (מחברת + סיכום לכל הרצאה) — בתשלום.\n`
+      + "העיבוד לוקח זמן: כמה דקות לכל הרצאה, 3 במקביל.\n\n"
+      + "התמלולים, המצגות והחומרים נשמרים. המחברות הקיימות נשמרות כגיבוי בתיקיית backup.",
     )) {
       return;
     }
@@ -333,7 +337,8 @@ export default function LectureList() {
                   >
                     {expandedSourcesId === lecture.id ? "הסתר מקורות" : "מקורות"}
                   </button>
-                  {lecture.status === "completed" && (
+                  {/* show it whenever the file exists, even if the status got stuck */}
+                  {(lecture.status === "completed" || lecture.has_notebook) && (
                     <Link
                       to={`/courses/${encodeURIComponent(decodedName)}/lectures/${encodeURIComponent(lecture.id)}/notebook`}
                       className="btn-primary"

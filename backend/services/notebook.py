@@ -147,6 +147,14 @@ def assemble_notebook(lecture_path: Path) -> Path:
     assembled = enrich_notebook_markdown(assembled)
     final_path.write_text(assembled, encoding="utf-8")
 
+    # the pipeline owns the status, so the summary stage is reported from here
+    write_job_status(
+        lecture_path,
+        status="processing",
+        stage="exam_summary",
+        progress_pct=92,
+        error=None,
+    )
     try:
         refresh_exam_summary(lecture_path, assembled)
     except Exception as exc:

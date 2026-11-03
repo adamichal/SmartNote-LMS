@@ -233,8 +233,8 @@ export function fixRtlBrackets(value) {
   return value.replace(/\[/g, "\u200F[").replace(/\]/g, "]\u200F");
 }
 
-const PUNCT_AFTER = /^[,.\:;!?\)\]\}،׃\-]/;
-const PUNCT_BEFORE = /[\(\[\{\-]$/;
+const PUNCT_AFTER = /^[,.:;!?)\]}،׃-]/;
+const PUNCT_BEFORE = /[([{-]$/;
 
 export function needSpaceBefore(segments, index) {
   if (index <= 0) return false;
@@ -264,6 +264,8 @@ export function escapeHtml(value) {
 /** Strip characters illegal in XML 1.0 text nodes. */
 export function sanitizeXmlText(value) {
   if (!value) return "";
+  // matching control chars is the whole point here, so the lint rule doesn't apply
+  // eslint-disable-next-line no-control-regex
   return value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFE\uFFFF]/g, "");
 }
 

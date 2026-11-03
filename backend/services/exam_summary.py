@@ -15,7 +15,7 @@ from google.genai import types
 from backend.config import GEMINI_API_KEY
 from backend.services.filesystem import parse_lecture_folder
 from backend.services.gemini_utils import get_client, resolve_gemini_model
-from backend.services.job_status import log_pipeline, write_job_status
+from backend.services.job_status import log_pipeline
 
 EXAM_SUMMARY_FILENAME = "exam_summary.md"
 
@@ -223,14 +223,9 @@ def generate_exam_summary(lecture_path: Path, notebook_content: str) -> str:
     )
 
     model_name = resolve_gemini_model()
+    # no job_status write here: this also runs outside the pipeline (editor button,
+    # scripts), and nothing would set the status back to "completed" afterwards
     log_pipeline(lecture_path, f"Generating exam summary ({model_name})")
-    write_job_status(
-        lecture_path,
-        status="processing",
-        stage="exam_summary",
-        progress_pct=92,
-        error=None,
-    )
 
     client = get_client()
     response = _call_gemini(client, model_name, user_prompt, lecture_path)

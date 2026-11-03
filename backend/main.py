@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.config import COURSES_BASE_PATH, GEMINI_API_KEY, GEMINI_MODEL
+from backend.config import COURSES_BASE_PATH
 from backend.routers import courses, files, lectures, uploads
 from backend.services.ffmpeg_utils import verify_ffmpeg_on_startup
 from backend.services.export import check_pdf_export_available

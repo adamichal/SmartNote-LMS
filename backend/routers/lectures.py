@@ -1,7 +1,6 @@
 import asyncio
 import json
 from pathlib import Path
-from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse

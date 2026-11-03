@@ -89,7 +89,6 @@ def resolve_gemini_model() -> str:
 
 
 def verify_gemini_on_startup() -> dict:
-    key_prefix = GEMINI_API_KEY[:3] if GEMINI_API_KEY else None
     if not GEMINI_API_KEY:
         return {
             "available": False,

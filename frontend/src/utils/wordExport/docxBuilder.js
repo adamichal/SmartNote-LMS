@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import { resolveWordFont } from "./config";
-import { escapeXml, expandCalloutSections, pxToEmu, scaleImageDimensions } from "./helpers";
+import { expandCalloutSections, pxToEmu, scaleImageDimensions } from "./helpers";
 import { buildDocxInlineRuns } from "./docxInline";
 import { latexToOMML } from "./latexOmml";
 import {

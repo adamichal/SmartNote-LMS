@@ -48,7 +48,7 @@ export function applySemanticListNesting(items) {
   let context = 0;
   return items.map((item) => {
     const classified = classifyBoldColonItem(item.content);
-    let indent = context;
+    let indent;
 
     if (!classified) {
       return { ...item, indent: Math.min(context, 3) };

@@ -1,17 +1,6 @@
 const MAX_WORD_IMAGE_WIDTH = 900;
 const JPEG_QUALITY = 0.82;
 
-function parseDataUrl(dataUrl) {
-  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!match) return null;
-  const binary = atob(match[2]);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return { mime: match[1], bytes };
-}
-
 function loadImageDimensions(dataUrl) {
   return new Promise((resolve) => {
     const image = new Image();

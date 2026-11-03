@@ -1,4 +1,3 @@
-import { resolveWordFont } from "./config";
 import { escapeXml } from "./helpers";
 
 /** 14pt spacing after body paragraphs (twips). */

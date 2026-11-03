@@ -8,5 +8,3 @@ node_modules/
 Courses/*
 !Courses/.gitkeep
 _course_path.txt
-pw_debug.cjs
-pw_debug.mjs

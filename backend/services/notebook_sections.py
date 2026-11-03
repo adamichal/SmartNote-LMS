@@ -7,7 +7,11 @@ from google.genai import types
 
 from backend.config import GEMINI_API_KEY
 from backend.services.course_context import build_course_context_for_lecture
-from backend.services.filesystem import get_course_path_or_404, list_lectures, parse_lecture_folder
+from backend.services.filesystem import (
+    get_course_path_or_404,
+    list_lectures,
+    parse_lecture_folder,
+)
 from backend.services.gemini import (
     _RETRIABLE_STRINGS,
     _RETRY_DELAYS,

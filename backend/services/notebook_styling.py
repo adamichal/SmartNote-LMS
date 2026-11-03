@@ -1,6 +1,6 @@
-from backend.services.notebook_format import format_notebook_content
-
 import re
+
+from backend.services.notebook_format import format_notebook_content
 
 LIST_ITEM_DEFINITION = re.compile(
     r"^(?P<indent>\s*)[-*]\s+\*\*(הגדרה\b[^*]*)\*\*(?P<trail>.*)$",

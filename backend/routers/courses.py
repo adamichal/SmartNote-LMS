@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 
 from backend.config import COURSE_CONTEXT_MAX_CHARS
 from backend.models.schemas import (
+    BulkAiRetryResponse,
     CourseContextPreview,
     CourseCreate,
     CourseInfoResponse,
@@ -15,10 +16,10 @@ from backend.models.schemas import (
     CourseResponse,
     LectureCreate,
     LectureResponse,
-    BulkAiRetryResponse,
 )
-from backend.services import course_context, filesystem as fs, pipeline_runner
+from backend.services import course_context, pipeline_runner
 from backend.services import export as export_service
+from backend.services import filesystem as fs
 from backend.services.filesystem import parse_lecture_folder
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])

@@ -8,12 +8,12 @@ from google.genai import types
 from backend.config import GEMINI_API_KEY
 from backend.services.course_context import build_course_context_for_lecture
 from backend.services.filesystem import parse_lecture_folder
+from backend.services.gemini_utils import get_client, resolve_gemini_model
+from backend.services.job_status import log_pipeline, write_job_status
 from backend.services.notebook import build_slide_catalog
 from backend.services.notebook_coverage import build_topic_checklist
 from backend.services.notebook_quality import log_notebook_quality
 from backend.services.source_text import format_practice_block, split_pdf_text
-from backend.services.gemini_utils import get_client, resolve_gemini_model
-from backend.services.job_status import log_pipeline, write_job_status
 
 SYSTEM_PROMPT = """You are the perfect university student — meticulous, clear, and thorough.
 You sat in the lecture, listened carefully, photographed key slides, and wrote comprehensive notes.

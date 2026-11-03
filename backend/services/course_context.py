@@ -6,7 +6,11 @@ import fitz
 from fastapi import HTTPException
 
 from backend.config import COURSE_CONTEXT_MAX_CHARS
-from backend.services.filesystem import get_course_path_or_404, list_lectures, parse_lecture_folder
+from backend.services.filesystem import (
+    get_course_path_or_404,
+    list_lectures,
+    parse_lecture_folder,
+)
 
 COURSE_MATERIALS_DIR = "course_materials"
 COURSE_INFO_FILENAME = "course_info.md"

@@ -1,0 +1,10 @@
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+# errors, unused imports/variables, import sorting
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# scripts add the project root to sys.path before importing backend
+"scripts/*" = ["E402"]

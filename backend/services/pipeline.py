@@ -4,7 +4,11 @@ from pathlib import Path
 from backend.services import audio, gemini, notebook, pdf, transcription
 from backend.services.ffmpeg_utils import resolve_ffmpeg_executable
 from backend.services.job_status import log_pipeline, write_job_status
-from backend.services.notebook_backup import BACKUP_DIR_NAME, backup_ai_outputs, restore_backup
+from backend.services.notebook_backup import (
+    BACKUP_DIR_NAME,
+    backup_ai_outputs,
+    restore_backup,
+)
 
 
 def _has_transcript(lecture_path: Path) -> bool:

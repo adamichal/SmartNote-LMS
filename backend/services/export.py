@@ -9,8 +9,8 @@ import markdown
 import pypandoc
 
 from backend.services import filesystem as fs
-from backend.services.notebook_format import format_notebook_content
 from backend.services.notebook import normalize_image_filename, read_notebook
+from backend.services.notebook_format import format_notebook_content
 
 IMAGE_PATH_PATTERN = re.compile(
     r"!\[([^\]]*)\]\((?:\./)?(?:extracted_images/)?((?:page|slide)_\d+\.png)\)",

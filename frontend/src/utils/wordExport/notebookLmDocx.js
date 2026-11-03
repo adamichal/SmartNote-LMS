@@ -9,9 +9,7 @@ export const BLOCK_GAP_SPACING = 200;
 function generateStylesXml(fontDocx) {
   const font = escapeXml(fontDocx);
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-  mc:Ignorable="w14">
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:docDefaults>
     <w:rPrDefault>
       <w:rPr>
@@ -47,8 +45,8 @@ function generateStylesXml(fontDocx) {
     </w:pPr>
     <w:rPr>
       <w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:cs="${font}" w:eastAsia="${font}"/>
-      <w:b/><w:bCs/><w:sz w:val="32"/><w:szCs w:val="32"/>
-      <w:color w:val="1E3A5F"/><w:rtl/>
+      <w:b/><w:bCs/><w:color w:val="1E3A5F"/><w:sz w:val="32"/><w:szCs w:val="32"/>
+      <w:rtl/>
     </w:rPr>
   </w:style>
   <w:style w:type="paragraph" w:styleId="Heading2">
@@ -64,8 +62,8 @@ function generateStylesXml(fontDocx) {
     </w:pPr>
     <w:rPr>
       <w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:cs="${font}" w:eastAsia="${font}"/>
-      <w:b/><w:bCs/><w:sz w:val="28"/><w:szCs w:val="28"/>
-      <w:color w:val="2A4A6F"/><w:rtl/>
+      <w:b/><w:bCs/><w:color w:val="2A4A6F"/><w:sz w:val="28"/><w:szCs w:val="28"/>
+      <w:rtl/>
     </w:rPr>
   </w:style>
   <w:style w:type="paragraph" w:styleId="Heading3">
@@ -81,8 +79,8 @@ function generateStylesXml(fontDocx) {
     </w:pPr>
     <w:rPr>
       <w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:cs="${font}" w:eastAsia="${font}"/>
-      <w:b/><w:bCs/><w:sz w:val="26"/><w:szCs w:val="26"/>
-      <w:color w:val="365A85"/><w:rtl/>
+      <w:b/><w:bCs/><w:color w:val="365A85"/><w:sz w:val="26"/><w:szCs w:val="26"/>
+      <w:rtl/>
     </w:rPr>
   </w:style>
   <w:style w:type="paragraph" w:styleId="Heading4">
@@ -98,8 +96,8 @@ function generateStylesXml(fontDocx) {
     </w:pPr>
     <w:rPr>
       <w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:cs="${font}" w:eastAsia="${font}"/>
-      <w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/>
-      <w:color w:val="4A7FAD"/><w:rtl/>
+      <w:b/><w:bCs/><w:color w:val="4A7FAD"/><w:sz w:val="24"/><w:szCs w:val="24"/>
+      <w:rtl/>
     </w:rPr>
   </w:style>
   <w:style w:type="paragraph" w:styleId="ListParagraph">
@@ -132,20 +130,20 @@ function generateNumberingXml(olBlocks) {
     <w:nsid w:val="0A991001"/>
     <w:multiLevelType w:val="hybridMultilevel"/>
     <w:lvl w:ilvl="0">
-      <w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/>
-      <w:lvlJc w:val="right"/><w:suff w:val="tab"/>
+      <w:start w:val="1"/><w:numFmt w:val="bullet"/><w:suff w:val="tab"/><w:lvlText w:val="•"/>
+      <w:lvlJc w:val="right"/>
       <w:pPr><w:bidi/><w:ind w:left="720" w:hanging="360"/></w:pPr>
       <w:rPr><w:rFonts w:ascii="Symbol" w:hAnsi="Symbol" w:hint="default"/><w:rtl/></w:rPr>
     </w:lvl>
     <w:lvl w:ilvl="1">
-      <w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="◦"/>
-      <w:lvlJc w:val="right"/><w:suff w:val="tab"/>
+      <w:start w:val="1"/><w:numFmt w:val="bullet"/><w:suff w:val="tab"/><w:lvlText w:val="◦"/>
+      <w:lvlJc w:val="right"/>
       <w:pPr><w:bidi/><w:ind w:left="1440" w:hanging="360"/></w:pPr>
       <w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:hint="default"/><w:rtl/></w:rPr>
     </w:lvl>
     <w:lvl w:ilvl="2">
-      <w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="▪"/>
-      <w:lvlJc w:val="right"/><w:suff w:val="tab"/>
+      <w:start w:val="1"/><w:numFmt w:val="bullet"/><w:suff w:val="tab"/><w:lvlText w:val="▪"/>
+      <w:lvlJc w:val="right"/>
       <w:pPr><w:bidi/><w:ind w:left="2160" w:hanging="360"/></w:pPr>
       <w:rPr><w:rtl/></w:rPr>
     </w:lvl>
@@ -154,20 +152,20 @@ function generateNumberingXml(olBlocks) {
     <w:nsid w:val="0A991002"/>
     <w:multiLevelType w:val="hybridMultilevel"/>
     <w:lvl w:ilvl="0">
-      <w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/>
-      <w:lvlJc w:val="right"/><w:suff w:val="tab"/>
+      <w:start w:val="1"/><w:numFmt w:val="decimal"/><w:suff w:val="tab"/><w:lvlText w:val="%1."/>
+      <w:lvlJc w:val="right"/>
       <w:pPr><w:bidi/><w:ind w:left="720" w:hanging="360"/></w:pPr>
       <w:rPr><w:rtl/></w:rPr>
     </w:lvl>
     <w:lvl w:ilvl="1">
-      <w:start w:val="1"/><w:numFmt w:val="lowerLetter"/><w:lvlText w:val="%2."/>
-      <w:lvlJc w:val="right"/><w:suff w:val="tab"/>
+      <w:start w:val="1"/><w:numFmt w:val="lowerLetter"/><w:suff w:val="tab"/><w:lvlText w:val="%2."/>
+      <w:lvlJc w:val="right"/>
       <w:pPr><w:bidi/><w:ind w:left="1440" w:hanging="360"/></w:pPr>
       <w:rPr><w:rtl/></w:rPr>
     </w:lvl>
     <w:lvl w:ilvl="2">
-      <w:start w:val="1"/><w:numFmt w:val="lowerRoman"/><w:lvlText w:val="%3."/>
-      <w:lvlJc w:val="right"/><w:suff w:val="tab"/>
+      <w:start w:val="1"/><w:numFmt w:val="lowerRoman"/><w:suff w:val="tab"/><w:lvlText w:val="%3."/>
+      <w:lvlJc w:val="right"/>
       <w:pPr><w:bidi/><w:ind w:left="2160" w:hanging="360"/></w:pPr>
       <w:rPr><w:rtl/></w:rPr>
     </w:lvl>
@@ -183,6 +181,9 @@ function generateSettingsXml() {
   <w:zoom w:percent="100"/>
   <w:defaultTabStop w:val="720"/>
   <w:characterSpacingControl w:val="doNotCompress"/>
+  <w:compat>
+    <w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>
+  </w:compat>
   <m:mathPr>
     <m:mathFont m:val="Cambria Math"/>
     <m:brkBin m:val="before"/>
@@ -192,9 +193,6 @@ function generateSettingsXml() {
     <m:rMargin m:val="0"/>
   </m:mathPr>
   <w:themeFontLang w:val="en-US" w:bidi="he-IL"/>
-  <w:compat>
-    <w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>
-  </w:compat>
 </w:settings>`;
 }
 

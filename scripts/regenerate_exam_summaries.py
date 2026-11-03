@@ -1,5 +1,6 @@
-"""Regenerate exam summaries for a course (default: אתיקה) and rebuild combined PDF."""
+"""Regenerate exam summaries for a course and rebuild its combined PDF."""
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -15,7 +16,13 @@ from backend.services.export import export_course_exam_summaries_combined_pdf
 
 
 def main() -> None:
-    course_name = sys.argv[1] if len(sys.argv) > 1 else "אתיקה"
+    parser = argparse.ArgumentParser(
+        description="Regenerate exam_summary.md for every lecture in a course that has "
+        "a notebook, then rebuild the combined exam-summaries PDF. "
+        "Costs one Gemini call per lecture.",
+    )
+    parser.add_argument("course_name", help='course folder name under Courses/, e.g. "אתיקה"')
+    course_name = parser.parse_args().course_name
     print(f"Regenerating exam summaries for: {course_name}")
     result = regenerate_course_exam_summaries(course_name)
     print(f"Done: {len(result['ok'])} ok, {len(result['failed'])} failed")

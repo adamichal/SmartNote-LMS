@@ -8,3 +8,5 @@ node_modules/
 Courses/*
 !Courses/.gitkeep
 _course_path.txt
+# quality audit output (contains lecture names)
+quality_audit.csv

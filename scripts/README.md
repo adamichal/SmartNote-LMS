@@ -14,4 +14,5 @@ Every script supports `--help`.
 | `export_course_combined_pdf.py` | Two combined PDFs for one course (notebooks + exam summaries) | no |
 | `regenerate_exam_summaries.py` | Rebuild `exam_summary.md` for every lecture in a course + combined PDF | **yes — 1 per lecture** |
 | `retry_course_ai.py` | Re-run AI editing + assembly for all lectures in a course | **yes — 2 per lecture** |
+| `quality_audit.py` | Quality checks on all notebooks → `quality_report.json` per lecture + summary per course and prompt version + `quality_audit.csv`; `--sample N` for manual precision review, `--no-write` to only read | no |
 | `augment_notebook_sections.py` | Add summary/placement/exam sections to existing notebooks (`--dry-run` available) | **yes** |

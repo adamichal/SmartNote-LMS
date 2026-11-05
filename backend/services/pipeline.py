@@ -9,6 +9,7 @@ from backend.services.notebook_backup import (
     backup_ai_outputs,
     restore_backup,
 )
+from backend.services.prompt_version import current_prompt_version
 
 
 def _has_transcript(lecture_path: Path) -> bool:
@@ -107,6 +108,8 @@ def run_pipeline(lecture_path: Path) -> None:
             progress_pct=100,
             error=None,
             completed_at=datetime.now(timezone.utc).isoformat(),
+            # which prompt generated this notebook — quality numbers are grouped by it
+            prompt_version=current_prompt_version(),
         )
         log_pipeline(lecture_path, "Pipeline completed successfully")
 
@@ -170,6 +173,8 @@ def run_ai_only_pipeline(lecture_path: Path) -> None:
             progress_pct=100,
             error=None,
             completed_at=datetime.now(timezone.utc).isoformat(),
+            # which prompt generated this notebook — quality numbers are grouped by it
+            prompt_version=current_prompt_version(),
         )
         log_pipeline(lecture_path, "AI-only reprocess completed")
 

@@ -12,6 +12,16 @@ from backend.services.notebook_backup import (
 from backend.services.prompt_version import current_prompt_version
 
 
+def _write_quality_report_safely(lecture_path: Path) -> None:
+    # local checks only (no Gemini); a bug here must never turn a finished notebook into an error
+    from backend.services.quality_checks import write_quality_report
+
+    try:
+        write_quality_report(lecture_path)
+    except Exception as exc:
+        log_pipeline(lecture_path, f"Quality report failed (notebook is fine): {exc}")
+
+
 def _has_transcript(lecture_path: Path) -> bool:
     transcript_path = lecture_path / "transcripts" / "raw_transcript.txt"
     return transcript_path.exists() and transcript_path.stat().st_size > 0
@@ -112,6 +122,7 @@ def run_pipeline(lecture_path: Path) -> None:
             prompt_version=current_prompt_version(),
         )
         log_pipeline(lecture_path, "Pipeline completed successfully")
+        _write_quality_report_safely(lecture_path)
 
     except Exception as exc:
         error_message = str(exc)
@@ -177,6 +188,7 @@ def run_ai_only_pipeline(lecture_path: Path) -> None:
             prompt_version=current_prompt_version(),
         )
         log_pipeline(lecture_path, "AI-only reprocess completed")
+        _write_quality_report_safely(lecture_path)
 
     except Exception as exc:
         error_message = str(exc)

@@ -6,37 +6,14 @@ import re
 from pathlib import Path
 
 from backend.services.job_status import log_pipeline
-from backend.services.notebook_coverage import (
-    topics_from_manifest,
-    topics_from_pdf_text,
-)
 
 _H2_PATTERN = re.compile(r"^##\s+(?!🔗|פתיחה|סיכום|📋|תרגול)(.+)$", re.MULTILINE)
 _DEFINITION_PATTERN = re.compile(r"^>\s*\*\*הגדרה", re.MULTILINE)
 _IMAGE_PATTERN = re.compile(r"!\[[^\]]*\]\([^)]*extracted_images/", re.IGNORECASE)
 
 
-def _mentioned_ratio(notebook: str, topics: list[str]) -> float:
-    if not topics:
-        return 1.0
-    body = notebook.casefold()
-    hits = 0
-    for topic in topics:
-        words = [w for w in re.findall(r"[\w\u0590-\u05FF]+", topic) if len(w) >= 3]
-        if not words:
-            continue
-        if any(word.casefold() in body for word in words[:3]):
-            hits += 1
-    return hits / len(topics)
-
-
-def audit_notebook_draft(
-    lecture_path: Path,
-    notebook: str,
-    transcript: str,
-    pdf_text: str,
-) -> list[str]:
-    """Return human-readable warnings (empty = no major issues)."""
+def structure_warnings(notebook: str, transcript: str) -> list[str]:
+    """Shape-of-the-notebook warnings (length, sections, definitions, images)."""
     warnings: list[str] = []
     notebook = notebook.strip()
     transcript = transcript.strip()
@@ -66,16 +43,33 @@ def audit_notebook_draft(
     if image_count < 2:
         warnings.append("מעט תמונות שקפים — שקול להטמיע יותר שקפים רלוונטיים.")
 
-    topics = topics_from_manifest(lecture_path)
-    if len(topics) < 3 and pdf_text:
-        topics = topics_from_pdf_text(pdf_text)
-    if topics:
-        coverage = _mentioned_ratio(notebook, topics)
-        if coverage < 0.55:
-            warnings.append(
-                f"כיסוי נושאי מצגת נמוך ({coverage:.0%}) — ייתכן שנושאי שקף חסרים."
-            )
+    return warnings
 
+
+def audit_notebook_draft(
+    lecture_path: Path,
+    notebook: str,
+    transcript: str,
+    pdf_text: str,
+) -> list[str]:
+    """Return human-readable warnings (empty = no major issues)."""
+    from backend.services.notebook_coverage import content_slides
+    from backend.services.quality_checks import (
+        COVERAGE_REVIEW_BELOW,
+        MIN_SLIDES_FOR_LEVEL,
+        check_slide_coverage,
+    )
+
+    warnings = structure_warnings(notebook, transcript)
+
+    # per-slide coverage (the full report with the uncovered slides is written after assembly)
+    coverage = check_slide_coverage(content_slides(lecture_path), notebook)
+    enough_slides = coverage["slides_checked"] >= MIN_SLIDES_FOR_LEVEL
+    if enough_slides and coverage["score"] < COVERAGE_REVIEW_BELOW:
+        warnings.append(
+            f"כיסוי שקפים נמוך ({coverage['score']:.0%}) — "
+            f"{len(coverage['uncovered'])} שקפים לא מכוסים."
+        )
     return warnings
 
 

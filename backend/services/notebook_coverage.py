@@ -22,17 +22,59 @@ def _load_manifest(lecture_path: Path) -> list[dict]:
         return []
 
 
+def is_presentation_pdf(pdf_name: str) -> bool:
+    return pdf_name == "presentation.pdf" or (
+        pdf_name.startswith("presentation_") and pdf_name.endswith(".pdf")
+    )
+
+
 def _presentation_pdfs(manifest: list[dict]) -> set[str]:
-    names: set[str] = set()
+    return {entry.get("pdf", "") for entry in manifest if is_presentation_pdf(entry.get("pdf", ""))}
+
+
+_PAGE_BLOCK = re.compile(r"^--- PDF page (\d+) \((.+?)\) ---$", re.MULTILINE)
+
+
+def _page_texts(pdf_text: str) -> dict[tuple[str, int], str]:
+    """Full text per (pdf name, 1-based page) from pdf_text.txt."""
+    texts: dict[tuple[str, int], str] = {}
+    matches = list(_PAGE_BLOCK.finditer(pdf_text))
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(pdf_text)
+        # cut at the next "### section" header so it doesn't leak into the last page
+        body = pdf_text[match.end():end].split("\n### ", 1)[0]
+        texts[(match.group(2), int(match.group(1)))] = body.strip()
+    return texts
+
+
+def content_slides(lecture_path: Path) -> list[dict]:
+    """Presentation slides worth covering, with their full text (same slide set as the topic checklist)."""
+    manifest = _load_manifest(lecture_path)
+    pdf_text_path = lecture_path / "transcripts" / "pdf_text.txt"
+    pdf_text = pdf_text_path.read_text(encoding="utf-8") if pdf_text_path.is_file() else ""
+    page_texts = _page_texts(pdf_text)
+    presentation_names = _presentation_pdfs(manifest)
+
+    slides: list[dict] = []
+    seen: set[str] = set()
     for entry in manifest:
         pdf_name = entry.get("pdf", "")
-        if not pdf_name:
+        if presentation_names and pdf_name not in presentation_names:
             continue
-        if pdf_name == "presentation.pdf" or (
-            pdf_name.startswith("presentation_") and pdf_name.endswith(".pdf")
-        ):
-            names.add(pdf_name)
-    return names
+        preview = " ".join((entry.get("preview") or "").split())
+        if is_non_content_slide(preview):
+            continue
+        page = int(entry.get("page", 0)) + 1
+        text = page_texts.get((pdf_name, page)) or preview
+        # animation builds repeat the same slide text — count it once
+        key = " ".join(text.split()).casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        slides.append(
+            {"file": entry.get("file", ""), "pdf": pdf_name, "page": page, "preview": preview[:120], "text": text}
+        )
+    return slides
 
 
 def _topic_from_preview(preview: str) -> str | None:

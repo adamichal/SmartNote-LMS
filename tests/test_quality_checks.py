@@ -60,6 +60,29 @@ def test_image_outside_the_slide_catalog(make_lecture):
     assert report["level"] == "review"
 
 
+def test_angle_bracket_image_path_is_read_correctly(make_lecture):
+    # ![x](<path>) is valid markdown; the > must not end up in the file name
+    notebook = GOOD_NOTEBOOK + "\n![השקיה](<./extracted_images/page_002.png>)\n"
+    assert run_quality_checks(make_lecture(notebook))["images"]["issues"] == []
+
+
+def test_unpadded_image_name_resolves_like_the_app(make_lecture):
+    # the app shows page_2.png as page_002.png, so it isn't a missing image
+    notebook = GOOD_NOTEBOOK + "\n![השקיה](./extracted_images/page_2.png)\n"
+    assert run_quality_checks(make_lecture(notebook))["images"]["issues"] == []
+
+
+def test_image_name_written_by_two_pdfs(make_lecture):
+    lecture = make_lecture()
+    manifest_path = lecture / "extracted_images" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    # old pipeline: the practice PDF's page 2 got the same file name as slide 2
+    manifest.append({"file": "page_002.png", "pdf": "extra_material_1.pdf", "page": 1, "preview": "עמוד תרגול"})
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+    issues = run_quality_checks(lecture)["images"]["issues"]
+    assert issues == [{"file": "page_002.png", "reason": "name_collision"}]
+
+
 def test_invented_number_is_flagged(make_lecture):
     notebook = GOOD_NOTEBOOK + "\nלפי מחקר משנת 1987, היבול עלה ב-73%.\n"
     unsupported = run_quality_checks(make_lecture(notebook))["numbers"]["unsupported"]
@@ -113,6 +136,17 @@ def test_english_slides_are_not_judged_against_hebrew_notebook():
     coverage = check_slide_coverage(slides, "מחברת בעברית בלבד על אתיקה של מידע")
     assert coverage["slides_other_language"] == 6
     assert coverage["score"] is None
+
+
+def test_mixed_slide_compares_only_notebook_script_words():
+    # mostly English slide with a few Hebrew words, glued tokens included
+    slides = [
+        {"file": "p1.png", "pdf": "presentation.pdf", "page": 1, "preview": "",
+         "text": "Composting improves soil structure Compostקומפוסט ביתי משפר קרקע"},
+    ]
+    coverage = check_slide_coverage(slides, "קומפוסט ביתי משפר את הקרקע בגינה")
+    assert coverage["slides_checked"] == 1
+    assert coverage["uncovered"] == []
 
 
 def test_footer_words_are_not_counted_as_missing():

@@ -53,7 +53,8 @@ STOPWORDS = {
     "the", "and", "for", "are", "with", "this", "that", "from", "was", "not", "but", "you",
     "all", "can", "has", "have", "its", "our", "who", "how", "what", "why", "when", "which",
 }
-_WORD = re.compile(r"[A-Za-zא-ת]+")
+# one script per word: slides often glue them together (Decilesעשירונים)
+_WORD = re.compile(r"[A-Za-z]+|[א-ת]+")
 _IMAGE_MARKUP = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 
 
@@ -117,12 +118,20 @@ def check_slide_coverage(slides: list[dict], notebook: str) -> dict:
     index = _word_index(body)
     notebook_hebrew = _is_hebrew(body)
 
-    # English slides vs a Hebrew notebook can't be compared word by word
-    same_language = [s for s in slides if _is_hebrew(s["text"]) == notebook_hebrew]
-    other_language = len(slides) - len(same_language)
+    # English words can't be found in a Hebrew notebook (and the other way round),
+    # so only words in the notebook's script are compared
+    same_language, keywords_per_slide = [], []
+    other_language = 0
+    for slide in slides:
+        all_keywords = slide_keywords(slide["text"])
+        keywords = [w for w in all_keywords if _is_hebrew(w) == notebook_hebrew]
+        if len(keywords) < MIN_SLIDE_KEYWORDS <= len(all_keywords):
+            other_language += 1  # e.g. an English slide in a Hebrew lecture
+            continue
+        same_language.append(slide)
+        keywords_per_slide.append(keywords)
 
     # footers, lecturer name, course title: words on most slides aren't slide content
-    keywords_per_slide = [slide_keywords(s["text"]) for s in same_language]
     boilerplate: set[str] = set()
     if len(keywords_per_slide) >= 5:
         counts: dict[str, int] = {}
@@ -170,23 +179,37 @@ _IMAGE_REF = re.compile(r"!\[[^\]]*\]\(([^)\s]+)\)")
 
 
 def check_images(lecture_path: Path, notebook: str) -> dict:
-    manifest = {entry.get("file"): entry for entry in _load_manifest(lecture_path)}
+    from backend.services.notebook import normalize_image_filename
+
+    images_dir = lecture_path / "extracted_images"
+    entries = _load_manifest(lecture_path)
+    manifest = {entry.get("file"): entry for entry in entries}
+    file_counts: dict[str, int] = {}
+    for entry in entries:
+        file_counts[entry.get("file")] = file_counts.get(entry.get("file"), 0) + 1
+
     names: list[str] = []
     for match in _IMAGE_REF.finditer(notebook):
-        target = match.group(1)
+        # markdown allows ![x](<path>), so drop the angle brackets
+        target = match.group(1).strip("<>")
         if "extracted_images/" not in target:
             continue
         name = unquote(target.rsplit("/", 1)[-1])
+        # same lookup the app uses when showing the image (page_24.png -> page_024.png)
+        name = normalize_image_filename(name, images_dir) or name
         if name not in names:
             names.append(name)
 
     issues = []
     for name in names:
         entry = manifest.get(name)
-        if not (lecture_path / "extracted_images" / name).is_file():
+        if not (images_dir / name).is_file():
             reason = "missing_file"
         elif entry is None:
             reason = "not_in_manifest"
+        elif file_counts[name] > 1:
+            # old pipeline bug: two PDFs wrote the same file name, so the shown image may be the wrong one
+            reason = "name_collision"
         elif not is_presentation_pdf(entry.get("pdf", "")):
             # the slide catalog Gemini gets lists presentation slides only
             reason = "not_presentation_slide"
@@ -404,11 +427,14 @@ def run_quality_checks(lecture_path: Path, sources: dict | None = None) -> dict:
     }
 
 
-def write_quality_report(lecture_path: Path) -> dict:
+def write_quality_report(lecture_path: Path, log: bool = True) -> dict:
     report = run_quality_checks(lecture_path)
     (lecture_path / REPORT_FILENAME).write_text(
         json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
     )
+    if not log:
+        # the audit script re-checks old lectures; their pipeline.log stays untouched
+        return report
     coverage = report["coverage"]["score"]
     log_pipeline(
         lecture_path,

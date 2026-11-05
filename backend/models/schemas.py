@@ -98,6 +98,7 @@ class JobStatusResponse(BaseModel):
     completed_at: str | None
     has_notebook: bool = False
     skipped_stages: list[str] = Field(default_factory=list)
+    prompt_version: str | None = None
 
 
 class NotebookResponse(BaseModel):

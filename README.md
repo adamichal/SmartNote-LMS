@@ -28,9 +28,6 @@ Lectures process in parallel (up to 3 concurrent jobs) in a background thread po
 | Editor | MDXEditor, Turndown, remark/rehype, KaTeX, Mermaid |
 | Export | Custom client-side DOCX builder (JSZip), browser print-to-PDF |
 
-## Screenshots
-
-*(add a screenshot or short screen recording of the notebook editor here)*
 
 ## Getting started
 
